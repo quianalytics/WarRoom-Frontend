@@ -14,8 +14,8 @@ class CpuDraftStrategy {
 
     // Sort by consensus rank (lower = better). Null ranks go to bottom.
     final sorted = [...board]..sort((a, b) {
-      final ar = a.consensusRank ?? 999999;
-      final br = b.consensusRank ?? 999999;
+      final ar = a.rank ?? 999999;
+      final br = b.rank ?? 999999;
       return ar.compareTo(br);
     });
 

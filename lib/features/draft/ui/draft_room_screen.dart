@@ -59,15 +59,15 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     final pick = state.currentPick;
 
     final filtered = state.availableProspects.where((p) {
-      if (search.isNotEmpty && !p.fullName.toLowerCase().contains(search.toLowerCase())) return false;
+      if (search.isNotEmpty && !p.name.toLowerCase().contains(search.toLowerCase())) return false;
       if (positionFilter != null && positionFilter!.isNotEmpty && p.position.toUpperCase() != positionFilter) {
         return false;
       }
       return true;
     }).toList()
       ..sort((a, b) {
-        final ar = a.consensusRank ?? 999999;
-        final br = b.consensusRank ?? 999999;
+        final ar = a.rank ?? 999999;
+        final br = b.rank ?? 999999;
         return ar.compareTo(br);
       });
 
@@ -169,8 +169,8 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
 
                 return ListTile(
                   dense: true,
-                  title: Text('${p.consensusRank ?? '-'}  ${p.fullName}'),
-                  subtitle: Text('${p.position} • ${p.school ?? ''}'.trim()),
+                  title: Text('${p.rank ?? '-'}  ${p.name}'),
+                  subtitle: Text('${p.position} • ${p.college ?? ''}'.trim()),
                   trailing: canPick
                       ? FilledButton(
                           onPressed: () => controller.draftProspect(p),
@@ -203,8 +203,8 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                 final pr = state.picksMade[i];
                 return ListTile(
                   dense: true,
-                  title: Text('${pr.pick.pickOverall}. ${pr.teamAbbr} - ${pr.prospect.fullName}'),
-                  subtitle: Text('${pr.prospect.position} • ${pr.prospect.school ?? ''}'.trim()),
+                  title: Text('${pr.pick.pickOverall}. ${pr.teamAbbr} - ${pr.prospect.name}'),
+                  subtitle: Text('${pr.prospect.position} • ${pr.prospect.college ?? ''}'.trim()),
                 );
               },
             ),

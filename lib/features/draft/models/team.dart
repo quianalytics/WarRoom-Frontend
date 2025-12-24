@@ -1,20 +1,44 @@
 import 'package:json_annotation/json_annotation.dart';
+
 part 'team.g.dart';
+
+String _str(dynamic v) => (v ?? '').toString();
+
+List<String>? _stringList(dynamic v) {
+  if (v == null) return null;
+  if (v is List) {
+    return v.where((e) => e != null).map((e) => e.toString()).toList();
+  }
+  return null;
+}
 
 @JsonSerializable()
 class Team {
+  @JsonKey(fromJson: _str)
   final String teamId;
+
+  @JsonKey(fromJson: _str)
   final String name;
+
+  @JsonKey(fromJson: _str)
   final String? city;
+
+  @JsonKey(fromJson: _str)
   final String abbreviation;
+
+  @JsonKey(fromJson: _str)
   final String conference;
+
+  @JsonKey(fromJson: _str)
   final String division;
 
-  // stored as list in DB; if your API returns stringified JSON, adjust parsing
+  @JsonKey(fromJson: _stringList)
   final List<String>? needs;
 
-  // optional extras
+  @JsonKey(fromJson: _stringList)
   final List<String>? colors;
+
+  @JsonKey(fromJson: _str)
   final String? logoUrl;
 
   Team({
