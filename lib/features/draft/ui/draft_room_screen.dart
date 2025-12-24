@@ -295,36 +295,29 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  pickLogTeamFilter == null
-                      ? 'Pick Log'
-                      : '${pickLogTeamFilter!} Picks',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                DropdownButton<String?>(
-                  value: pickLogTeamFilter,
-                  underline: const SizedBox.shrink(),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('All Teams'),
-                    ),
-                    ...teams.map((abbr) {
-                      final c = teamCounts[abbr] ?? 0;
-                      return DropdownMenuItem<String?>(
-                        value: abbr,
-                        child: Text('$abbr ($c)'),
-                      );
-                    }),
-                  ],
-                  onChanged: (v) => setState(() => pickLogTeamFilter = v),
-                ),
-              ],
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: DropdownButton<String?>(
+                value: pickLogTeamFilter,
+                underline: const SizedBox.shrink(),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('All Teams'),
+                  ),
+                  ...teams.map((abbr) {
+                    final c = teamCounts[abbr] ?? 0;
+                    return DropdownMenuItem<String?>(
+                      value: abbr,
+                      child: Text('$abbr ($c)'),
+                    );
+                  }),
+                ],
+                onChanged: (v) => setState(() => pickLogTeamFilter = v),
+              ),
             ),
           ),
+
           const Divider(height: 1),
           Expanded(
             child: picks.isEmpty
