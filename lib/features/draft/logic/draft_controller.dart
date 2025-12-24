@@ -51,15 +51,19 @@ class DraftController extends StateNotifier<DraftState> {
 
   void pauseClock() {
   state = state.copyWith(clockRunning: false);
+  _clock.pause();
   _cpuTimer?.cancel();
   _cpuScheduledIndex = null;
 }
 
+
   void resumeClock() {
-    if (state.isComplete) return;
-    state = state.copyWith(clockRunning: true);
-    _maybeScheduleCpuPick();
-  }
+  if (state.isComplete) return;
+  state = state.copyWith(clockRunning: true);
+  _clock.resume();
+  _maybeScheduleCpuPick();
+}
+
 
 
   void _startClockForCurrentPick() {
