@@ -7,6 +7,7 @@ import 'draft_clock.dart';
 import 'draft_state.dart';
 import 'cpu_strategy.dart';
 import 'trade_engine.dart';
+import 'dart:async';
 
 class DraftController extends StateNotifier<DraftState> {
   DraftController(this._repo) : super(DraftState.initial());
@@ -15,6 +16,9 @@ class DraftController extends StateNotifier<DraftState> {
   final DraftClock _clock = DraftClock();
   final CpuDraftStrategy _cpu = CpuDraftStrategy();
   final TradeEngine _trades = TradeEngine();
+  Timer? _cpuTimer;
+  int? _cpuScheduledIndex;
+
 
   int _clockSeconds = 600;
 
@@ -39,35 +43,41 @@ class DraftController extends StateNotifier<DraftState> {
       );
 
       _startClockForCurrentPick();
-      _maybeAutoCpuPick(); // if first pick is CPU, it should start thinking
+      _maybeScheduleCpuPick(); // if first pick is CPU, it should start thinking
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
     }
   }
 
   void pauseClock() {
-    state = state.copyWith(clockRunning: false);
-  }
+  state = state.copyWith(clockRunning: false);
+  _cpuTimer?.cancel();
+  _cpuScheduledIndex = null;
+}
 
   void resumeClock() {
     if (state.isComplete) return;
     state = state.copyWith(clockRunning: true);
+    _maybeScheduleCpuPick();
   }
 
+
   void _startClockForCurrentPick() {
-    _clock.start(
-      seconds: _clockSeconds,
-      onTick: (remaining) {
-        state = state.copyWith(secondsRemaining: remaining);
-      },
-      onExpired: () {
-        // Auto pick on timeout
-        if (!state.isComplete) {
-          autoPick();
-        }
-      },
-    );
-  }
+  _clock.start(
+    seconds: _clockSeconds,
+    onTick: (remaining) {
+      state = state.copyWith(secondsRemaining: remaining);
+    },
+    onExpired: () {
+      if (state.isComplete) return;
+      // prevent double-pick if CPU timer is about to fire
+      _cpuTimer?.cancel();
+      _cpuScheduledIndex = null;
+
+      autoPick();
+    },
+  );
+}
 
   Team? _teamByAbbr(String abbr) {
     final u = abbr.toUpperCase();
@@ -103,7 +113,7 @@ class DraftController extends StateNotifier<DraftState> {
 
     if (!state.isComplete) {
       _startClockForCurrentPick();
-      _maybeAutoCpuPick();
+      _maybeScheduleCpuPick();
     } else {
       _clock.stop();
     }
@@ -119,13 +129,32 @@ class DraftController extends StateNotifier<DraftState> {
     draftProspect(chosen);
   }
 
-  void _maybeAutoCpuPick() {
-    if (state.isComplete) return;
-    if (state.isUserOnClock) return;
-
-    // For MVP: CPU picks immediately (or you can add a short delay)
-    autoPick();
+  void _maybeScheduleCpuPick() {
+  if (state.isComplete) return;
+  if (state.isUserOnClock) {
+    _cpuTimer?.cancel();
+    _cpuScheduledIndex = null;
+    return;
   }
+
+  // Avoid scheduling twice for the same pick
+  if (_cpuScheduledIndex == state.currentIndex) return;
+
+  _cpuTimer?.cancel();
+  _cpuScheduledIndex = state.currentIndex;
+
+  // Simple "think time" – tune this later
+  final thinkSeconds = 1 + (DateTime.now().millisecondsSinceEpoch % 3); // 1..3
+
+  _cpuTimer = Timer(Duration(seconds: thinkSeconds), () {
+    // If we've advanced or paused, don't pick
+    if (state.isComplete) return;
+    if (!state.clockRunning) return;
+    if (state.currentIndex != _cpuScheduledIndex) return;
+
+    autoPick();
+  });
+}
 
   /// Trade: swap ownership of picks (MVP uses pick swaps only)
   /// You’ll call this from a UI trade sheet.
@@ -174,6 +203,7 @@ class DraftController extends StateNotifier<DraftState> {
 
   @override
   void dispose() {
+    _cpuTimer?.cancel();
     _clock.stop();
     super.dispose();
   }

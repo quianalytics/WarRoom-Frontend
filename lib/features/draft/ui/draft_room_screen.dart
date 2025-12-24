@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers.dart';
 import '../logic/draft_state.dart';
 import '../models/prospect.dart';
+import 'package:go_router/go_router.dart';
+
 
 class DraftRoomScreen extends ConsumerStatefulWidget {
   const DraftRoomScreen({super.key, required this.year, required this.controlledTeams});
@@ -139,7 +141,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                 Expanded(
                   child: TextField(
                     decoration: const InputDecoration(
-                      hintText: 'Search prospects…',
+                      hintText: 'Search',
                       isDense: true,
                       border: OutlineInputBorder(),
                     ),

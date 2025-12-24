@@ -13,12 +13,41 @@ class _SetupScreenState extends State<SetupScreen> {
 
   // Temporary static list. Next step: load from /teams.
   final allTeams = const [
-    'ARI','ATL','BAL','BUF','CAR','CHI','CIN','CLE','DAL','DEN','DET','GB',
-    'HOU','IND','JAX','KC','LV','LAC','LAR','MIA','MIN','NE','NO','NYG',
-    'NYJ','PHI','PIT','SF','SEA','TB','TEN','WAS'
+    'ARI',
+    'ATL',
+    'BAL',
+    'BUF',
+    'CAR',
+    'CHI',
+    'CIN',
+    'CLE',
+    'DAL',
+    'DEN',
+    'DET',
+    'GB',
+    'HOU',
+    'IND',
+    'JAX',
+    'KC',
+    'LV',
+    'LAC',
+    'LAR',
+    'MIA',
+    'MIN',
+    'NE',
+    'NO',
+    'NYG',
+    'NYJ',
+    'PHI',
+    'PIT',
+    'SF',
+    'SEA',
+    'TB',
+    'TEN',
+    'WAS',
   ];
 
-  final selected = <String>{'NYG'};
+  final selected = <String>{};
 
   @override
   Widget build(BuildContext context) {
@@ -70,14 +99,24 @@ class _SetupScreenState extends State<SetupScreen> {
               ),
             ),
             const SizedBox(height: 8),
+            if (selected.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Select at least one team to control.',
+                style: TextStyle(color: Colors.white70),
+              ),
+            ),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                 onPressed: selected.isEmpty
-                    ? null
+                    ? null // <- DISABLED when no teams selected
                     : () {
                         final teams = selected.toList()..sort();
-                        context.go('/draft?year=$year&teams=${teams.join(',')}');
+                        context.go(
+                          '/draft?year=$year&teams=${teams.join(',')}',
+                        );
                       },
                 child: const Text('Start Mock Draft'),
               ),

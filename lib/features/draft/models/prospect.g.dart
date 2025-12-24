@@ -8,16 +8,16 @@ part of 'prospect.dart';
 
 Prospect _$ProspectFromJson(Map<String, dynamic> json) => Prospect(
   id: _idFromJson(json['_id']),
-  name: _stringFromJson(json['fullName']),
+  name: _stringFromJson(json['name']),
   position: _stringFromJson(json['position']),
-  college: _stringFromJson(json['school']),
-  rank: _intFromJson(json['consensusRank']),
+  college: _stringFromJson(json['college']),
+  rank: _intFromJson(json['rank']),
 );
 
 Map<String, dynamic> _$ProspectToJson(Prospect instance) => <String, dynamic>{
   '_id': instance.id,
-  'fullName': instance.name,
+  'name': instance.name,
   'position': instance.position,
-  'school': instance.college,
+  'college': instance.college,
   'rank': instance.rank,
 };
