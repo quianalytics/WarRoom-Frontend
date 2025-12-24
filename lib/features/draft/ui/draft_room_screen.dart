@@ -34,7 +34,6 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   bool _bootstrapped = false;
   bool recapCollapsed = false;
 
-
   @override
   void initState() {
     super.initState();
@@ -51,7 +50,9 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
       } else {
         controller.start(
           year: widget.year,
-          userTeams: widget.controlledTeams.map((e) => e.toUpperCase()).toList(),
+          userTeams: widget.controlledTeams
+              .map((e) => e.toUpperCase())
+              .toList(),
           speedPreset: DraftSpeedPreset.fast,
         );
       }
@@ -72,10 +73,22 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
             tooltip: 'Speed',
             onSelected: controller.setSpeedPreset,
             itemBuilder: (_) => const [
-              PopupMenuItem(value: DraftSpeedPreset.slow, child: Text('Speed: Slow')),
-              PopupMenuItem(value: DraftSpeedPreset.normal, child: Text('Speed: Normal')),
-              PopupMenuItem(value: DraftSpeedPreset.fast, child: Text('Speed: Fast')),
-              PopupMenuItem(value: DraftSpeedPreset.instant, child: Text('Speed: Instant')),
+              PopupMenuItem(
+                value: DraftSpeedPreset.slow,
+                child: Text('Speed: Slow'),
+              ),
+              PopupMenuItem(
+                value: DraftSpeedPreset.normal,
+                child: Text('Speed: Normal'),
+              ),
+              PopupMenuItem(
+                value: DraftSpeedPreset.fast,
+                child: Text('Speed: Fast'),
+              ),
+              PopupMenuItem(
+                value: DraftSpeedPreset.instant,
+                child: Text('Speed: Instant'),
+              ),
             ],
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -91,7 +104,9 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
             icon: state.clockRunning ? Icons.pause : Icons.play_arrow,
             tooltip: state.clockRunning ? 'Pause' : 'Resume',
             onPressed: () {
-              state.clockRunning ? controller.pauseClock() : controller.resumeClock();
+              state.clockRunning
+                  ? controller.pauseClock()
+                  : controller.resumeClock();
             },
           ),
 
@@ -107,13 +122,13 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
       body: state.loading
           ? const Center(child: CircularProgressIndicator())
           : state.error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(state.error!),
-                  ),
-                )
-              : _content(context, state),
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(state.error!),
+              ),
+            )
+          : _content(context, state),
     );
   }
 
@@ -124,8 +139,14 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         title: const Text('Exit draft?'),
         content: const Text('Your current draft will not be saved.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Exit')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Exit'),
+          ),
         ],
       ),
     );
@@ -138,20 +159,23 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   Widget _content(BuildContext context, DraftState state) {
     final pick = state.currentPick;
 
-    final filtered = state.availableProspects.where((p) {
-      if (search.isNotEmpty && !p.name.toLowerCase().contains(search.toLowerCase())) {
-        return false;
-      }
-      if (positionFilter != null && positionFilter!.isNotEmpty && p.position.toUpperCase() != positionFilter) {
-        return false;
-      }
-      return true;
-    }).toList()
-      ..sort((a, b) {
-        final ar = a.rank ?? 999999;
-        final br = b.rank ?? 999999;
-        return ar.compareTo(br);
-      });
+    final filtered =
+        state.availableProspects.where((p) {
+          if (search.isNotEmpty &&
+              !p.name.toLowerCase().contains(search.toLowerCase())) {
+            return false;
+          }
+          if (positionFilter != null &&
+              positionFilter!.isNotEmpty &&
+              p.position.toUpperCase() != positionFilter) {
+            return false;
+          }
+          return true;
+        }).toList()..sort((a, b) {
+          final ar = a.rank ?? 999999;
+          final br = b.rank ?? 999999;
+          return ar.compareTo(br);
+        });
 
     final topBoard = filtered.take(150).toList();
 
@@ -164,15 +188,39 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
           Expanded(
             child: Row(
               children: [
-                Expanded(flex: 3, child: Panel(child: _bigBoardPanel(state, topBoard))),
+                // Big board expands to full width when recap is collapsed
+                Expanded(
+                  flex: recapCollapsed ? 1 : 3,
+                  child: _bigBoardPanel(state, topBoard),
+                ),
                 const SizedBox(width: 12),
-                Expanded(flex: 2, child: Panel(child: _pickLogPanel(state))),
+
+                if (recapCollapsed)
+                  SizedBox(
+                    width: 44, // slim rail
+                    child: _recapRail(state),
+                  )
+                else
+                  Expanded(flex: 2, child: Panel(child: _pickLogPanel(state))),
               ],
             ),
           ),
           const SizedBox(height: 12),
           if (pick != null) Panel(child: _onClockFooter(state)),
         ],
+      ),
+    );
+  }
+
+  Widget _recapRail(DraftState state) {
+    return Panel(
+      padding: EdgeInsets.zero, // no padding
+      child: Center(
+        child: IconButton(
+          tooltip: 'Expand recap',
+          onPressed: () => setState(() => recapCollapsed = false),
+          icon: const Icon(Icons.chevron_left, size: 22),
+        ),
       ),
     );
   }
@@ -187,13 +235,13 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         Expanded(
           child: Text(
             state.currentPick?.label ?? 'Draft complete',
-            style: Theme.of(context).textTheme.titleLarge,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
             overflow: TextOverflow.ellipsis,
           ),
         ),
         const SizedBox(width: 10),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3.5),
           decoration: BoxDecoration(
             color: AppColors.blue.withOpacity(0.15),
             borderRadius: BorderRadius.circular(999),
@@ -201,13 +249,20 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
           ),
           child: Text(
             'OTC: ${state.onClockTeam}',
-            style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.text),
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
+            ),
           ),
         ),
         const SizedBox(width: 10),
         Text(
           '$m:$s',
-          style: Theme.of(context).textTheme.titleLarge,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
         ),
         const SizedBox(width: 10),
         _statusChip(state),
@@ -218,15 +273,20 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   Widget _statusChip(DraftState state) {
     final isUser = state.isUserOnClock;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3.5),
       decoration: BoxDecoration(
         color: isUser ? AppColors.blue.withOpacity(0.15) : AppColors.surface2,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: isUser ? AppColors.blue.withOpacity(0.4) : AppColors.border),
+        border: Border.all(
+          color: isUser ? AppColors.blue.withOpacity(0.4) : AppColors.border,
+        ),
       ),
       child: Text(
         isUser ? 'USER PICK' : 'CPU PICK',
-        style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.text),
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          color: AppColors.text,
+        ),
       ),
     );
   }
@@ -252,9 +312,28 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
               child: DropdownButton<String?>(
                 value: positionFilter,
                 hint: const Text('Pos'),
-                items: const <String?>[null, 'QB', 'RB', 'WR', 'TE', 'OT', 'IOL', 'EDGE', 'DL', 'LB', 'CB', 'S']
-                    .map((p) => DropdownMenuItem(value: p, child: Text(p ?? 'All')))
-                    .toList(),
+                items:
+                    const <String?>[
+                          null,
+                          'QB',
+                          'RB',
+                          'WR',
+                          'TE',
+                          'OT',
+                          'IOL',
+                          'EDGE',
+                          'DL',
+                          'LB',
+                          'CB',
+                          'S',
+                        ]
+                        .map(
+                          (p) => DropdownMenuItem(
+                            value: p,
+                            child: Text(p ?? 'All'),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (v) => setState(() => positionFilter = v),
               ),
             ),
@@ -273,7 +352,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
 
               return ListTile(
                 dense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 2,
+                ),
                 title: Row(
                   children: [
                     _rankPill(p.rank),
@@ -285,7 +367,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                         overflow: TextOverflow.ellipsis,
                         // Explicit color avoids theme edge-cases and ensures visibility
                         // even when trailing actions are present.
-                        style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.text),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.text,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -306,7 +391,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                         icon: const Icon(Icons.check, size: 18),
                         label: const Text('Draft'),
                         style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
                           minimumSize: const Size(0, 36),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
@@ -332,7 +420,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
       child: Text(
         (rank ?? 0) == 0 ? '-' : '$rank',
         textAlign: TextAlign.center,
-        style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.text),
+        style: const TextStyle(
+          fontWeight: FontWeight.w800,
+          color: AppColors.text,
+        ),
       ),
     );
   }
@@ -347,14 +438,18 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
       ),
       child: Text(
         pos.toUpperCase(),
-        style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.text),
+        style: const TextStyle(
+          fontWeight: FontWeight.w800,
+          color: AppColors.text,
+        ),
       ),
     );
   }
 
   Widget _pickLogPanel(DraftState state) {
     // Dropdown options from ALL teams (so it exists even before picks happen)
-    final allTeams = state.teams.map((t) => t.abbreviation.toUpperCase()).toList()..sort();
+    final allTeams =
+        state.teams.map((t) => t.abbreviation.toUpperCase()).toList()..sort();
 
     final counts = <String, int>{};
     for (final t in allTeams) {
@@ -393,65 +488,96 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
 
     return Column(
       children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String?>(
-              value: pickLogTeamFilter,
-              items: [
-                const DropdownMenuItem<String?>(value: null, child: Text('All Teams')),
-                ...allTeams.map((abbr) {
-                  final c = counts[abbr] ?? 0;
-                  return DropdownMenuItem<String?>(
-                    value: abbr,
-                    child: Text('$abbr ($c)'),
-                  );
-                }),
-              ],
-              onChanged: (v) => setState(() => pickLogTeamFilter = v),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: pickLogTeamFilter,
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('All Teams'),
+                  ),
+                  ...allTeams.map((abbr) {
+                    final c = counts[abbr] ?? 0;
+                    return DropdownMenuItem<String?>(
+                      value: abbr,
+                      child: Text('$abbr ($c)'),
+                    );
+                  }),
+                ],
+                onChanged: (v) => setState(() => pickLogTeamFilter = v),
+              ),
             ),
-          ),
+            const SizedBox(width: 6),
+            IconButton(
+              tooltip: recapCollapsed ? 'Expand recap' : 'Collapse recap',
+              onPressed: () => setState(() => recapCollapsed = !recapCollapsed),
+              icon: Icon(
+                recapCollapsed ? Icons.chevron_left : Icons.chevron_right,
+              ),
+            ),
+          ],
         ),
+
         const SizedBox(height: 8),
         if (selectedTeam != null && teamObj != null) ...[
-          _rosterPanel(teamObj.abbreviation.toUpperCase(), teamObj.needs ?? const [], roster),
+          _rosterPanel(
+            teamObj.abbreviation.toUpperCase(),
+            teamObj.needs ?? const [],
+            roster,
+          ),
           const SizedBox(height: 10),
         ],
         const Divider(height: 1),
         const SizedBox(height: 6),
-        Expanded(
-          child: picks.isEmpty
-              ? const Center(child: Text('No picks yet.'))
-              : ListView.separated(
-                  itemCount: picks.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, i) {
-                    final pr = picks[i];
-                    return ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      // Put the player name first so it remains visible on narrow layouts.
-                      title: Text(
-                        pr.prospect.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.text),
-                      ),
-                      subtitle: Text(
-                        '${pr.pick.pickOverall}. ${pr.teamAbbr}  •  R${pr.pick.round}.${pr.pick.pickInRound.toString().padLeft(2, '0')}  •  ${pr.prospect.position}${(pr.prospect.college == null || pr.prospect.college!.isEmpty) ? '' : ' • ${pr.prospect.college}'}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AppColors.textMuted),
-                      ),
-                    );
-                  },
-                ),
-        ),
+        const Divider(height: 1),
+        const SizedBox(height: 6),
+        if (!recapCollapsed)
+          Expanded(
+            child: picks.isEmpty
+                ? const Center(child: Text('No picks yet.'))
+                : ListView.separated(
+                    itemCount: picks.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, i) {
+                      final pr = picks[i];
+                      return ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
+                        // Put the player name first so it remains visible on narrow layouts.
+                        title: Text(
+                          pr.prospect.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${pr.pick.pickOverall}. ${pr.teamAbbr}  •  R${pr.pick.round}.${pr.pick.pickInRound.toString().padLeft(2, '0')}  •  ${pr.prospect.position}${(pr.prospect.college == null || pr.prospect.college!.isEmpty) ? '' : ' • ${pr.prospect.college}'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: AppColors.textMuted),
+                        ),
+                      );
+                    },
+                  ),
+          ),
       ],
     );
   }
 
-  Widget _rosterPanel(String teamAbbr, List<String> needs, List<PickResult> roster) {
+  Widget _rosterPanel(
+    String teamAbbr,
+    List<String> needs,
+    List<PickResult> roster,
+  ) {
     // Light “roster capsule” preview; keeps the pick log clean.
     final top = roster.take(7).toList();
 
@@ -468,16 +594,31 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         children: [
           Row(
             children: [
-              Text('$teamAbbr Draft', style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.text)),
+              Text(
+                '$teamAbbr Draft',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.blue.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(color: AppColors.blue.withOpacity(0.35)),
                 ),
-                child: Text('${roster.length} picks', style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.text)),
+                child: Text(
+                  '${roster.length} picks',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
+                ),
               ),
             ],
           ),
@@ -533,11 +674,11 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
           ),
         ),
         const SizedBox(width: 8),
-        if (canRun)
-          FilledButton(
-            onPressed: () => controller.runToNextUserPick(),
-            child: const Text('Run to My Next Pick'),
-          ),
+        // if (canRun)
+        //   FilledButton(
+        //     onPressed: () => controller.runToNextUserPick(),
+        //     child: const Text('Run to My Next Pick'),
+        //   ),
         if (canRun) const SizedBox(width: 8),
         if (canRun)
           OutlinedButton(
@@ -551,7 +692,8 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
               final result = await showModalBottomSheet<TradeSheetResult>(
                 context: context,
                 isScrollControlled: true,
-                builder: (_) => TradeSheet(state: state, currentTeam: state.onClockTeam),
+                builder: (_) =>
+                    TradeSheet(state: state, currentTeam: state.onClockTeam),
               );
               if (result == null) return;
 
@@ -567,7 +709,9 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
               if (!context.mounted) return;
 
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(ok ? 'Trade accepted' : 'Trade rejected')),
+                SnackBar(
+                  content: Text(ok ? 'Trade accepted' : 'Trade rejected'),
+                ),
               );
             },
             child: const Text('Trade'),

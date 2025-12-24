@@ -18,14 +18,15 @@ class IconPill extends StatelessWidget {
     return IconButton(
       tooltip: tooltip,
       onPressed: onPressed,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       icon: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: AppRadii.r16,
           border: Border.all(color: AppColors.border),
         ),
-        child: Icon(icon, size: 18, color: AppColors.text),
+        child: Icon(icon, size: 14, color: AppColors.text),
       ),
     );
   }
