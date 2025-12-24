@@ -31,8 +31,9 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   String search = '';
   String? positionFilter;
   String? pickLogTeamFilter; // null = All Teams
-
   bool _bootstrapped = false;
+  bool recapCollapsed = false;
+
 
   @override
   void initState() {
@@ -64,7 +65,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('WarRoom Mock Draft ${widget.year}'),
+        title: Text('${widget.year} Mock Draft'),
         actions: [
           // Draft speed
           PopupMenuButton<DraftSpeedPreset>(
