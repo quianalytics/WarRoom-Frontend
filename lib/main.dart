@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'app_router.dart';
 
 void main() {
-  runApp(const MainApp());
+  runApp(const ProviderScope(child: WarRoomDraftApp()));
 }
 
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+class WarRoomDraftApp extends StatelessWidget {
+  const WarRoomDraftApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
-        ),
+    return MaterialApp.router(
+      title: 'WarRoom Draft',
+      theme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
       ),
+      routerConfig: appRouter,
     );
   }
 }
+
