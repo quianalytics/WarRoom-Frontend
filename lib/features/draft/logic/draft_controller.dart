@@ -1,96 +1,181 @@
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../data/draft_repository.dart';
+import '../models/draft_pick.dart';
+import '../models/prospect.dart';
+import '../models/team.dart';
+import 'draft_clock.dart';
+import 'draft_state.dart';
+import 'cpu_strategy.dart';
+import 'trade_engine.dart';
 
-class DraftUiState {
-  final bool initialized;
-  final bool clockRunning;
-  final int secondsRemaining;
+class DraftController extends StateNotifier<DraftState> {
+  DraftController(this._repo) : super(DraftState.initial());
 
-  final String currentPickLabel; // "Pick 1 (R1.1)"
-  final String onTheClockTeam;   // "NYG"
-  final String statusText;
+  final DraftRepository _repo;
+  final DraftClock _clock = DraftClock();
+  final CpuDraftStrategy _cpu = CpuDraftStrategy();
+  final TradeEngine _trades = TradeEngine();
 
-  const DraftUiState({
-    required this.initialized,
-    required this.clockRunning,
-    required this.secondsRemaining,
-    required this.currentPickLabel,
-    required this.onTheClockTeam,
-    required this.statusText,
-  });
+  int _clockSeconds = 600;
 
-  factory DraftUiState.initial() => const DraftUiState(
-        initialized: false,
-        clockRunning: false,
-        secondsRemaining: 600, // 10 min default (we'll make this configurable)
-        currentPickLabel: 'Not started',
-        onTheClockTeam: '--',
-        statusText: 'Press Start to begin the mock draft.',
+  Future<void> start({required int year, required List<String> userTeams, int clockSeconds = 600}) async {
+    state = state.copyWith(loading: true, error: null, year: year, userTeams: userTeams);
+    _clockSeconds = clockSeconds;
+
+    try {
+      final teams = await _repo.fetchTeams();
+      final order = await _repo.fetchDraftOrder(year);
+      final prospects = await _repo.fetchProspects(year);
+
+      state = state.copyWith(
+        loading: false,
+        teams: teams,
+        order: order..sort((a, b) => a.pickOverall.compareTo(b.pickOverall)),
+        availableProspects: prospects,
+        picksMade: [],
+        currentIndex: 0,
+        secondsRemaining: _clockSeconds,
+        clockRunning: true,
       );
 
-  DraftUiState copyWith({
-    bool? initialized,
-    bool? clockRunning,
-    int? secondsRemaining,
-    String? currentPickLabel,
-    String? onTheClockTeam,
-    String? statusText,
-  }) {
-    return DraftUiState(
-      initialized: initialized ?? this.initialized,
-      clockRunning: clockRunning ?? this.clockRunning,
-      secondsRemaining: secondsRemaining ?? this.secondsRemaining,
-      currentPickLabel: currentPickLabel ?? this.currentPickLabel,
-      onTheClockTeam: onTheClockTeam ?? this.onTheClockTeam,
-      statusText: statusText ?? this.statusText,
+      _startClockForCurrentPick();
+      _maybeAutoCpuPick(); // if first pick is CPU, it should start thinking
+    } catch (e) {
+      state = state.copyWith(loading: false, error: e.toString());
+    }
+  }
+
+  void pauseClock() {
+    state = state.copyWith(clockRunning: false);
+  }
+
+  void resumeClock() {
+    if (state.isComplete) return;
+    state = state.copyWith(clockRunning: true);
+  }
+
+  void _startClockForCurrentPick() {
+    _clock.start(
+      seconds: _clockSeconds,
+      onTick: (remaining) {
+        state = state.copyWith(secondsRemaining: remaining);
+      },
+      onExpired: () {
+        // Auto pick on timeout
+        if (!state.isComplete) {
+          autoPick();
+        }
+      },
     );
   }
-}
 
-class DraftController extends StateNotifier<DraftUiState> {
-  DraftController() : super(DraftUiState.initial());
+  Team? _teamByAbbr(String abbr) {
+    final u = abbr.toUpperCase();
+    for (final t in state.teams) {
+      if (t.abbreviation.toUpperCase() == u || t.teamId.toUpperCase() == u) return t;
+    }
+    return null;
+  }
 
-  Timer? _timer;
+  void draftProspect(Prospect p) {
+    final pick = state.currentPick;
+    if (pick == null) return;
 
-  Future<void> startDraft({required int year, required List<String> controlledTeams}) async {
-    // Next step: load picks, teams, prospects from your API
+    // Remove from available
+    final updatedBoard = [...state.availableProspects]..removeWhere((x) => x.id == p.id);
+
+    final result = PickResult(
+      pick: pick,
+      teamAbbr: pick.teamAbbr,
+      prospect: p,
+      madeAt: DateTime.now(),
+    );
+
+    final picksMade = [...state.picksMade, result];
+
     state = state.copyWith(
-      initialized: true,
-      currentPickLabel: 'Pick 1 (R1.1)',
-      onTheClockTeam: 'NYG',
-      statusText: 'Draft started. Next: load draft order + big board.',
+      availableProspects: updatedBoard,
+      picksMade: picksMade,
+      currentIndex: state.currentIndex + 1,
+      secondsRemaining: _clockSeconds,
+      clockRunning: true,
     );
 
-    _startClock(seconds: 600);
+    if (!state.isComplete) {
+      _startClockForCurrentPick();
+      _maybeAutoCpuPick();
+    } else {
+      _clock.stop();
+    }
   }
 
-  void _startClock({required int seconds}) {
-    _timer?.cancel();
-    state = state.copyWith(secondsRemaining: seconds, clockRunning: true);
+  void autoPick() {
+    final pick = state.currentPick;
+    if (pick == null) return;
 
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!state.clockRunning) return;
-      final next = state.secondsRemaining - 1;
-      if (next <= 0) {
-        // Next step: auto-pick + advance to next pick
-        state = state.copyWith(
-          secondsRemaining: 0,
-          clockRunning: false,
-          statusText: 'Clock expired. Next: auto-pick and advance.',
-        );
-        _timer?.cancel();
-      } else {
-        state = state.copyWith(secondsRemaining: next);
+    final team = _teamByAbbr(pick.teamAbbr);
+    final chosen = _cpu.choose(team: team, board: state.availableProspects);
+
+    draftProspect(chosen);
+  }
+
+  void _maybeAutoCpuPick() {
+    if (state.isComplete) return;
+    if (state.isUserOnClock) return;
+
+    // For MVP: CPU picks immediately (or you can add a short delay)
+    autoPick();
+  }
+
+  /// Trade: swap ownership of picks (MVP uses pick swaps only)
+  /// You’ll call this from a UI trade sheet.
+  bool proposeTrade(TradeOffer offer) {
+    if (!_trades.accept(offer)) return false;
+
+    // Update order ownership for any picks in the offer lists
+    final updatedOrder = state.order.map((p) {
+      DraftPick updated = p;
+      for (final give in offer.toAssets) {
+        if (p.pickOverall == give.pickOverall && p.round == give.round) {
+          // toAssets are given by toTeam -> fromTeam acquires them
+          updated = DraftPick(
+            year: p.year,
+            round: p.round,
+            pickOverall: p.pickOverall,
+            pickInRound: p.pickInRound,
+            teamAbbr: offer.fromTeam,
+            team: p.team,
+            originalTeamAbbr: p.originalTeamAbbr,
+            isCompensatory: p.isCompensatory,
+          );
+        }
       }
-    });
-  }
+      for (final get in offer.fromAssets) {
+        if (p.pickOverall == get.pickOverall && p.round == get.round) {
+          // fromAssets are given by fromTeam -> toTeam acquires them
+          updated = DraftPick(
+            year: p.year,
+            round: p.round,
+            pickOverall: p.pickOverall,
+            pickInRound: p.pickInRound,
+            teamAbbr: offer.toTeam,
+            team: p.team,
+            originalTeamAbbr: p.originalTeamAbbr,
+            isCompensatory: p.isCompensatory,
+          );
+        }
+      }
+      return updated;
+    }).toList();
 
-  void pauseClock() => state = state.copyWith(clockRunning: false);
-  void resumeClock() => state = state.copyWith(clockRunning: true);
+    state = state.copyWith(order: updatedOrder);
+    return true;
+  }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _clock.stop();
     super.dispose();
   }
 }
+
