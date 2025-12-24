@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'widgets/trade_sheet.dart';
 import '../logic/draft_speed.dart';
 import '../logic/trade_engine.dart';
+import '../../../ui/icon_pill.dart';
+import '../../../theme/app_theme.dart';
 
 enum PickLogSortMode { pick, team }
 
@@ -136,13 +138,14 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
             },
             child: const Text('Exit'),
           ),
-          IconButton(
-            tooltip: state.clockRunning ? 'Pause' : 'Resume',
-            onPressed: () => state.clockRunning
-                ? ref.read(draftControllerProvider.notifier).pauseClock()
-                : ref.read(draftControllerProvider.notifier).resumeClock(),
-            icon: Icon(state.clockRunning ? Icons.pause : Icons.play_arrow),
-          ),
+          IconPill(
+      icon: state.clockRunning ? Icons.pause : Icons.play_arrow,
+      tooltip: state.clockRunning ? 'Pause' : 'Resume',
+      onPressed: () {
+        final c = ref.read(draftControllerProvider.notifier);
+        state.clockRunning ? c.pauseClock() : c.resumeClock();
+      },
+    ),
         ],
       ),
 
