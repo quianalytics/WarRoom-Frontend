@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/storage/local_store.dart';
 
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
@@ -10,6 +11,7 @@ class SetupScreen extends StatefulWidget {
 
 class _SetupScreenState extends State<SetupScreen> {
   int year = 2026;
+  bool canResume = false;
 
   // Temporary static list. Next step: load from /teams.
   final allTeams = const [
@@ -49,6 +51,18 @@ class _SetupScreenState extends State<SetupScreen> {
 
   final selected = <String>{};
 
+  Future<void> _refreshResume() async {
+    final has = await LocalStore.hasDraft(year);
+    if (!mounted) return;
+    setState(() => canResume = has);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshResume();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -68,7 +82,13 @@ class _SetupScreenState extends State<SetupScreen> {
                     DropdownMenuItem(value: 2026, child: Text('2026')),
                     DropdownMenuItem(value: 2027, child: Text('2027')),
                   ],
-                  onChanged: (v) => setState(() => year = v ?? 2026),
+                  onChanged: (v) {
+                    final newYear = v ?? 2026;
+                    setState(() => year = newYear);
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _refreshResume();
+                    });
+                  },
                 ),
               ],
             ),
@@ -100,13 +120,13 @@ class _SetupScreenState extends State<SetupScreen> {
             ),
             const SizedBox(height: 8),
             if (selected.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 8),
-              child: Text(
-                'Select at least one team to control.',
-                style: TextStyle(color: Colors.white70),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Select at least one team to control.',
+                  style: TextStyle(color: Colors.white70),
+                ),
               ),
-            ),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
@@ -119,6 +139,17 @@ class _SetupScreenState extends State<SetupScreen> {
                         );
                       },
                 child: const Text('Start Mock Draft'),
+              ),
+            ),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: canResume
+                    ? () => context.go(
+                        '/draft?year=$year&teams=${(selected.toList()..sort()).join(',')}&resume=1',
+                      )
+                    : null,
+                child: const Text('Resume Draft'),
               ),
             ),
           ],

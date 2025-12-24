@@ -8,6 +8,8 @@ import 'draft_state.dart';
 import 'cpu_strategy.dart';
 import 'trade_engine.dart';
 import 'dart:async';
+import '../../../core/storage/local_store.dart';
+import 'draft_speed.dart';
 
 class DraftController extends StateNotifier<DraftState> {
   DraftController(this._repo) : super(DraftState.initial());
@@ -19,12 +21,31 @@ class DraftController extends StateNotifier<DraftState> {
   Timer? _cpuTimer;
   int? _cpuScheduledIndex;
 
+  DraftSpeedPreset _speedPreset = DraftSpeedPreset.normal;
+  DraftSpeed _speed = DraftSpeed.forPreset(DraftSpeedPreset.normal);
+
+  bool _runToNextUserPick = false;
 
   int _clockSeconds = 600;
 
-  Future<void> start({required int year, required List<String> userTeams, int clockSeconds = 600}) async {
-    state = state.copyWith(loading: true, error: null, year: year, userTeams: userTeams);
-    _clockSeconds = clockSeconds;
+  int _currentClockSeconds() =>
+      state.isUserOnClock ? _speed.userClockSeconds : _speed.cpuClockSeconds;
+
+  Future<void> start({
+    required int year,
+    required List<String> userTeams,
+    DraftSpeedPreset speedPreset = DraftSpeedPreset.normal,
+
+  }) async {
+    _speedPreset = speedPreset;
+    _speed = DraftSpeed.forPreset(speedPreset);
+
+    state = state.copyWith(
+      loading: true,
+      error: null,
+      year: year,
+      userTeams: userTeams,
+    );
 
     try {
       final teams = await _repo.fetchTeams();
@@ -38,65 +59,66 @@ class DraftController extends StateNotifier<DraftState> {
         availableProspects: prospects,
         picksMade: [],
         currentIndex: 0,
-        secondsRemaining: _clockSeconds,
+        secondsRemaining: _currentClockSeconds(),
         clockRunning: true,
       );
 
+      await saveNow(); // initial save
       _startClockForCurrentPick();
-      _maybeScheduleCpuPick(); // if first pick is CPU, it should start thinking
+      _maybeScheduleCpuPick();
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
     }
   }
 
-  void pauseClock() {
-  state = state.copyWith(clockRunning: false);
-  _clock.pause();
-  _cpuTimer?.cancel();
-  _cpuScheduledIndex = null;
-}
-
+  void pauseClock() async {
+    state = state.copyWith(clockRunning: false);
+    _clock.pause();
+    _cpuTimer?.cancel();
+    _cpuScheduledIndex = null;
+    await saveNow();
+  }
 
   void resumeClock() {
-  if (state.isComplete) return;
-  state = state.copyWith(clockRunning: true);
-  _clock.resume();
-  _maybeScheduleCpuPick();
-}
-
-
+    if (state.isComplete) return;
+    state = state.copyWith(clockRunning: true);
+    _clock.resume();
+    _maybeScheduleCpuPick();
+  }
 
   void _startClockForCurrentPick() {
-  _clock.start(
-    seconds: _clockSeconds,
-    onTick: (remaining) {
-      state = state.copyWith(secondsRemaining: remaining);
-    },
-    onExpired: () {
-      if (state.isComplete) return;
-      // prevent double-pick if CPU timer is about to fire
-      _cpuTimer?.cancel();
-      _cpuScheduledIndex = null;
+    final seconds = _currentClockSeconds();
 
-      autoPick();
-    },
-  );
-}
+    _clock.start(
+      seconds: seconds,
+      onTick: (remaining) {
+        state = state.copyWith(secondsRemaining: remaining);
+      },
+      onExpired: () {
+        if (state.isComplete) return;
+        _cpuTimer?.cancel();
+        _cpuScheduledIndex = null;
+        autoPick();
+      },
+    );
+  }
 
   Team? _teamByAbbr(String abbr) {
     final u = abbr.toUpperCase();
     for (final t in state.teams) {
-      if (t.abbreviation.toUpperCase() == u || t.teamId.toUpperCase() == u) return t;
+      if (t.abbreviation.toUpperCase() == u || t.teamId.toUpperCase() == u)
+        return t;
     }
     return null;
   }
 
-  void draftProspect(Prospect p) {
+  Future<void> draftProspect(Prospect p) async {
     final pick = state.currentPick;
     if (pick == null) return;
 
     // Remove from available
-    final updatedBoard = [...state.availableProspects]..removeWhere((x) => x.id == p.id);
+    final updatedBoard = [...state.availableProspects]
+      ..removeWhere((x) => x.id == p.id);
 
     final result = PickResult(
       pick: pick,
@@ -118,47 +140,102 @@ class DraftController extends StateNotifier<DraftState> {
     if (!state.isComplete) {
       _startClockForCurrentPick();
       _maybeScheduleCpuPick();
+      await saveNow();
     } else {
       _clock.stop();
     }
   }
 
-  void autoPick() {
+  Future<void> autoPick() async {
     final pick = state.currentPick;
     if (pick == null) return;
-
     final team = _teamByAbbr(pick.teamAbbr);
     final chosen = _cpu.choose(team: team, board: state.availableProspects);
-
-    draftProspect(chosen);
+    await draftProspect(chosen);
   }
 
   void _maybeScheduleCpuPick() {
-  if (state.isComplete) return;
-  if (state.isUserOnClock) {
+    if (state.isComplete) return;
+
+    if (state.isUserOnClock) {
+      _cpuTimer?.cancel();
+      _cpuScheduledIndex = null;
+      _runToNextUserPick = false; // stop fast-forward once user is up
+      return;
+    }
+
+    // Avoid double scheduling for the same pick
+    if (_cpuScheduledIndex == state.currentIndex) return;
+
     _cpuTimer?.cancel();
-    _cpuScheduledIndex = null;
-    return;
+    _cpuScheduledIndex = state.currentIndex;
+
+    // If we're running to next user pick or preset is instant, pick immediately
+    final instant =
+        _speedPreset == DraftSpeedPreset.instant || _runToNextUserPick;
+    if (instant) {
+      autoPick();
+      return;
+    }
+
+    // Otherwise think 1..N seconds
+    final min = _speed.cpuThinkMinSeconds;
+    final max = _speed.cpuThinkMaxSeconds;
+    final thinkSeconds = (max <= min)
+        ? min
+        : (min + (DateTime.now().millisecondsSinceEpoch % (max - min + 1)));
+
+    _cpuTimer = Timer(Duration(seconds: thinkSeconds), () {
+      if (state.isComplete) return;
+      if (!state.clockRunning) return;
+      if (state.currentIndex != _cpuScheduledIndex) return;
+
+      autoPick();
+    });
   }
 
-  // Avoid scheduling twice for the same pick
-  if (_cpuScheduledIndex == state.currentIndex) return;
+  DraftSpeedPreset get speedPreset => _speedPreset;
 
-  _cpuTimer?.cancel();
-  _cpuScheduledIndex = state.currentIndex;
+  Future<void> resumeSavedDraft(int year) async {
+    final saved = await LocalStore.loadDraft(year);
+    if (saved == null) {
+      state = state.copyWith(error: 'No saved draft found for $year');
+      return;
+    }
+    _clock.stop();
+    _cpuTimer?.cancel();
+    _cpuScheduledIndex = null;
 
-  // Simple "think time" – tune this later
-  final thinkSeconds = 1 + (DateTime.now().millisecondsSinceEpoch % 3); // 1..3
+    state = DraftState.fromJson(saved);
+    // When resuming, restart clock for current pick
+    _startClockForCurrentPick();
+    _maybeScheduleCpuPick();
+  }
 
-  _cpuTimer = Timer(Duration(seconds: thinkSeconds), () {
-    // If we've advanced or paused, don't pick
-    if (state.isComplete) return;
-    if (!state.clockRunning) return;
-    if (state.currentIndex != _cpuScheduledIndex) return;
+  Future<void> saveNow() async {
+    if (state.order.isEmpty) return;
+    await LocalStore.saveDraft(state.year, state.toJson());
+  }
 
-    autoPick();
-  });
-}
+  Future<void> clearSavedDraft(int year) async {
+    await LocalStore.clearDraft(year);
+  }
+
+  void setSpeedPreset(DraftSpeedPreset preset) {
+    _speedPreset = preset;
+    _speed = DraftSpeed.forPreset(preset);
+
+    // Apply immediately to current pick:
+    state = state.copyWith(secondsRemaining: _currentClockSeconds());
+    _startClockForCurrentPick();
+    _maybeScheduleCpuPick();
+  }
+
+  void runToNextUserPick() {
+    _runToNextUserPick = true;
+    // If CPU is on the clock, accelerate until next user pick.
+    _maybeScheduleCpuPick();
+  }
 
   /// Trade: swap ownership of picks (MVP uses pick swaps only)
   /// You’ll call this from a UI trade sheet.
@@ -212,4 +289,3 @@ class DraftController extends StateNotifier<DraftState> {
     super.dispose();
   }
 }
-

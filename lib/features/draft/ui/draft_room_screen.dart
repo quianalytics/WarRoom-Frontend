@@ -4,6 +4,9 @@ import '../providers.dart';
 import '../logic/draft_state.dart';
 import '../models/prospect.dart';
 import 'package:go_router/go_router.dart';
+import 'widgets/trade_sheet.dart';
+import '../logic/draft_speed.dart';
+import '../logic/trade_engine.dart';
 
 enum PickLogSortMode { pick, team }
 
@@ -12,10 +15,12 @@ class DraftRoomScreen extends ConsumerStatefulWidget {
     super.key,
     required this.year,
     required this.controlledTeams,
+    required this.resume,
   });
 
   final int year;
   final List<String> controlledTeams;
+  final bool resume;
 
   @override
   ConsumerState<DraftRoomScreen> createState() => _DraftRoomScreenState();
@@ -25,21 +30,29 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   String search = '';
   String? positionFilter;
   String? pickLogTeamFilter; // null = All Teams
+  bool _bootstrapped = false;
 
   @override
   void initState() {
     super.initState();
-    // Start draft on entry
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(draftControllerProvider.notifier)
-          .start(
-            year: widget.year,
-            userTeams: widget.controlledTeams
-                .map((e) => e.toUpperCase())
-                .toList(),
-            clockSeconds: 180, // set to 180 for faster testing; bump later
-          );
+
+    Future.microtask(() {
+      if (!mounted || _bootstrapped) return;
+      _bootstrapped = true;
+
+      final controller = ref.read(draftControllerProvider.notifier);
+
+      if (widget.resume) {
+        controller.resumeSavedDraft(widget.year);
+      } else {
+        controller.start(
+          year: widget.year,
+          userTeams: widget.controlledTeams
+              .map((e) => e.toUpperCase())
+              .toList(),
+          speedPreset: DraftSpeedPreset.fast, // or normal
+        );
+      }
     });
   }
 
@@ -67,6 +80,50 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                     FilledButton(
                       onPressed: () => Navigator.pop(ctx, true),
                       child: const Text('Exit'),
+                    ),
+                    PopupMenuButton<String>(
+                      tooltip: 'Speed',
+                      onSelected: (v) {
+                        final controller = ref.read(
+                          draftControllerProvider.notifier,
+                        );
+                        switch (v) {
+                          case 'slow':
+                            controller.setSpeedPreset(DraftSpeedPreset.slow);
+                            break;
+                          case 'normal':
+                            controller.setSpeedPreset(DraftSpeedPreset.normal);
+                            break;
+                          case 'fast':
+                            controller.setSpeedPreset(DraftSpeedPreset.fast);
+                            break;
+                          case 'instant':
+                            controller.setSpeedPreset(DraftSpeedPreset.instant);
+                            break;
+                        }
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'slow',
+                          child: Text('Speed: Slow'),
+                        ),
+                        PopupMenuItem(
+                          value: 'normal',
+                          child: Text('Speed: Normal'),
+                        ),
+                        PopupMenuItem(
+                          value: 'fast',
+                          child: Text('Speed: Fast'),
+                        ),
+                        PopupMenuItem(
+                          value: 'instant',
+                          child: Text('Speed: Instant'),
+                        ),
+                      ],
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Center(child: Text('Speed')),
+                      ),
                     ),
                   ],
                 ),
@@ -286,6 +343,18 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
               .where((p) => p.teamAbbr == pickLogTeamFilter)
               .toList();
 
+    final selectedTeam = pickLogTeamFilter;
+    final teamObj = selectedTeam == null
+        ? null
+        : state.teams.firstWhere(
+            (t) => t.abbreviation.toUpperCase() == selectedTeam.toUpperCase(),
+            orElse: () => state.teams.first,
+          );
+
+    final roster = selectedTeam == null
+        ? const <PickResult>[]
+        : state.picksMade.where((p) => p.teamAbbr == selectedTeam).toList();
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white10,
@@ -339,6 +408,44 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                     },
                   ),
           ),
+          if (selectedTeam != null && teamObj != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${teamObj.abbreviation} Roster',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Needs: ${(teamObj.needs ?? []).join(', ')}',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: roster.map((pr) {
+                        return Chip(
+                          label: Text(
+                            '${pr.prospect.position} • ${pr.prospect.name}',
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -361,6 +468,46 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
           FilledButton(
             onPressed: () => controller.autoPick(),
             child: const Text('Force CPU Pick'),
+          ),
+        if (state.isUserOnClock && !state.isComplete)
+          FilledButton(
+            onPressed: () async {
+              final result = await showModalBottomSheet<TradeSheetResult>(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) =>
+                    TradeSheet(state: state, currentTeam: state.onClockTeam),
+              );
+
+              if (result == null) return;
+
+              final pick = state.currentPick!;
+              final offer = TradeOffer(
+                fromTeam: result.partnerTeam, // partner acquires current pick
+                toTeam: pick.teamAbbr, // user team receives partner picks
+                fromAssets: result
+                    .partnerPicksSelected, // partner gives these to user team
+                toAssets: [pick], // user gives current pick
+              );
+
+              final ok = ref
+                  .read(draftControllerProvider.notifier)
+                  .proposeTrade(offer);
+              if (!context.mounted) return;
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(ok ? 'Trade accepted' : 'Trade rejected'),
+                ),
+              );
+            },
+            child: const Text('Trade'),
+          ),
+        if (!state.isUserOnClock && !state.isComplete)
+          FilledButton(
+            onPressed: () =>
+                ref.read(draftControllerProvider.notifier).runToNextUserPick(),
+            child: const Text('Run to My Next Pick'),
           ),
       ],
     );
