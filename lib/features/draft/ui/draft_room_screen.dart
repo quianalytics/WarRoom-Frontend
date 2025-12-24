@@ -137,7 +137,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Exit draft?'),
-        content: const Text('Your current draft will not be saved.'),
+        content: const Text('Press Resume Draft on the home page if you would like to finish.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
