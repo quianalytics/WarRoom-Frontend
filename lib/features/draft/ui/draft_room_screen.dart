@@ -13,7 +13,7 @@ class DraftRoomScreen extends ConsumerStatefulWidget {
     required this.year,
     required this.controlledTeams,
   });
-  
+
   final int year;
   final List<String> controlledTeams;
 
@@ -25,7 +25,6 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   String search = '';
   String? positionFilter;
   String? pickLogTeamFilter; // null = All Teams
-
 
   @override
   void initState() {
@@ -265,79 +264,92 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     );
   }
 
-Widget _pickLogPanel(DraftState state) {
-  // Build dropdown options from picks that have occurred so far
-  final teamCounts = <String, int>{};
-  for (final pr in state.picksMade) {
-    teamCounts[pr.teamAbbr] = (teamCounts[pr.teamAbbr] ?? 0) + 1;
-  }
+  Widget _pickLogPanel(DraftState state) {
+    // Build dropdown options from picks that have occurred so far
+    final teamCounts = <String, int>{};
+    for (final pr in state.picksMade) {
+      teamCounts[pr.teamAbbr] = (teamCounts[pr.teamAbbr] ?? 0) + 1;
+    }
 
-  final teams = teamCounts.keys.toList()..sort();
+    final teams = teamCounts.keys.toList()..sort();
 
-  // If current filter team no longer exists (e.g., new draft), reset it
-  if (pickLogTeamFilter != null && !teamCounts.containsKey(pickLogTeamFilter)) {
-    pickLogTeamFilter = null;
-  }
+    // If current filter team no longer exists (e.g., new draft), reset it
+    if (pickLogTeamFilter != null &&
+        !teamCounts.containsKey(pickLogTeamFilter)) {
+      pickLogTeamFilter = null;
+    }
 
-  // Apply filter
-  final picks = pickLogTeamFilter == null
-      ? state.picksMade
-      : state.picksMade.where((p) => p.teamAbbr == pickLogTeamFilter).toList();
+    // Apply filter
+    final picks = pickLogTeamFilter == null
+        ? state.picksMade
+        : state.picksMade
+              .where((p) => p.teamAbbr == pickLogTeamFilter)
+              .toList();
 
-  return Container(
-    decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(12)),
-    child: Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                pickLogTeamFilter == null ? 'Pick Log' : '${pickLogTeamFilter!} Picks',
-                style: const TextStyle(fontSize: 16),
-              ),
-              DropdownButton<String?>(
-                value: pickLogTeamFilter,
-                underline: const SizedBox.shrink(),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('All Teams'),
-                  ),
-                  ...teams.map((abbr) {
-                    final c = teamCounts[abbr] ?? 0;
-                    return DropdownMenuItem<String?>(
-                      value: abbr,
-                      child: Text('$abbr ($c)'),
-                    );
-                  }),
-                ],
-                onChanged: (v) => setState(() => pickLogTeamFilter = v),
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
-        Expanded(
-          child: picks.isEmpty
-              ? const Center(child: Text('No picks yet.'))
-              : ListView.builder(
-                  itemCount: picks.length,
-                  itemBuilder: (context, i) {
-                    final pr = picks[i];
-                    return ListTile(
-                      dense: true,
-                      title: Text('${pr.pick.pickOverall}. ${pr.teamAbbr} - ${pr.prospect.name}'),
-                      subtitle: Text('${pr.prospect.position} • ${pr.prospect.college ?? ''}'.trim()),
-                    );
-                  },
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  pickLogTeamFilter == null
+                      ? 'Pick Log'
+                      : '${pickLogTeamFilter!} Picks',
+                  style: const TextStyle(fontSize: 16),
                 ),
-        ),
-      ],
-    ),
-  );
-}
+                DropdownButton<String?>(
+                  value: pickLogTeamFilter,
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('All Teams'),
+                    ),
+                    ...teams.map((abbr) {
+                      final c = teamCounts[abbr] ?? 0;
+                      return DropdownMenuItem<String?>(
+                        value: abbr,
+                        child: Text('$abbr ($c)'),
+                      );
+                    }),
+                  ],
+                  onChanged: (v) => setState(() => pickLogTeamFilter = v),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: picks.isEmpty
+                ? const Center(child: Text('No picks yet.'))
+                : ListView.builder(
+                    itemCount: picks.length,
+                    itemBuilder: (context, i) {
+                      final pr = picks[i];
+                      return ListTile(
+                        dense: true,
+                        title: Text(
+                          '${pr.pick.pickOverall}. ${pr.teamAbbr} (R${pr.pick.round}.${pr.pick.pickInRound.toString().padLeft(2, '0')}) - ${pr.prospect.name}',
+                        ),
+                        subtitle: Text(
+                          '${pr.prospect.position} • ${pr.prospect.college ?? ''}'
+                              .trim(),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _onClockFooter(DraftState state) {
     // Later: add a Trade button that opens a bottom sheet to propose trades
