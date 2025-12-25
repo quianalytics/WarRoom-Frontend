@@ -31,8 +31,11 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   String search = '';
   String? positionFilter;
   String? pickLogTeamFilter; // null = All Teams
+  bool _pickLogInitialized = false;
   bool _bootstrapped = false;
   bool recapCollapsed = false;
+  final ScrollController _pickLogScroll = ScrollController();
+  int _lastPickCount = 0;
 
   @override
   void initState() {
@@ -57,6 +60,12 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         );
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _pickLogScroll.dispose();
+    super.dispose();
   }
 
   @override
@@ -350,56 +359,96 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
               final p = board[i];
               final canPick = state.isUserOnClock && !state.isComplete;
 
-              return ListTile(
-                dense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 2,
-                ),
-                title: Row(
-                  children: [
-                    _rankPill(p.rank),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        p.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        // Explicit color avoids theme edge-cases and ensures visibility
-                        // even when trailing actions are present.
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.text,
-                        ),
-                      ),
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 360;
+                  final college = (p.college ?? '').trim();
+                  final subtitle = isNarrow
+                      ? [
+                          p.position.toUpperCase(),
+                          if (college.isNotEmpty) college,
+                        ].join(' • ')
+                      : college;
+
+                  return ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
                     ),
-                    const SizedBox(width: 8),
-                    _posPill(p.position),
-                  ],
-                ),
-                subtitle: Text(
-                  p.college ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.textMuted),
-                ),
-                // Keep the call-to-action compact so the player name doesn't get squeezed
-                // on smaller screens.
-                trailing: canPick
-                    ? FilledButton.tonalIcon(
-                        onPressed: () => controller.draftProspect(p),
-                        icon: const Icon(Icons.check, size: 18),
-                        label: const Text('Draft'),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 10,
+                    title: Row(
+                      children: [
+                        _rankPill(p.rank),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            p.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            // Explicit color avoids theme edge-cases and ensures visibility
+                            // even when trailing actions are present.
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
                           ),
-                          minimumSize: const Size(0, 36),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                      )
-                    : null,
+                        if (!isNarrow) ...[
+                          const SizedBox(width: 8),
+                          _posPill(p.position),
+                        ],
+                      ],
+                    ),
+                    subtitle: Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.textMuted),
+                    ),
+                    // Keep the call-to-action compact so the player name doesn't get squeezed
+                    // on smaller screens.
+                    trailing: canPick
+                        ? (isNarrow
+                            ? FilledButton(
+                                onPressed: () => controller.draftProspect(p),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppColors.blue,
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  minimumSize: const Size(0, 36),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: const Text(
+                                  '+',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                              )
+                            : FilledButton.icon(
+                                onPressed: () => controller.draftProspect(p),
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text('Draft'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppColors.blue,
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 10,
+                                  ),
+                                  minimumSize: const Size(0, 36),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ))
+                        : null,
+                  );
+                },
               );
             },
           ),
@@ -466,11 +515,16 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
       counts[pr.teamAbbr] = (counts[pr.teamAbbr] ?? 0) + 1;
     }
 
-    // Default to the first user-controlled team if no filter is set.
-    if (pickLogTeamFilter == null && userTeams.isNotEmpty) {
+    // Default to the first user-controlled team only once.
+    if (!_pickLogInitialized &&
+        pickLogTeamFilter == null &&
+        userTeams.isNotEmpty) {
       Future.microtask(() {
         if (!mounted) return;
-        setState(() => pickLogTeamFilter = userTeams.first);
+        setState(() {
+          pickLogTeamFilter = userTeams.first;
+          _pickLogInitialized = true;
+        });
       });
     }
 
@@ -501,6 +555,16 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
       picks.sort((a, b) => a.pick.pickOverall.compareTo(b.pick.pickOverall));
     }
 
+    if (selectedTeam == null && picks.length > _lastPickCount) {
+      _lastPickCount = picks.length;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_pickLogScroll.hasClients) return;
+        _pickLogScroll.jumpTo(_pickLogScroll.position.maxScrollExtent);
+      });
+    } else if (selectedTeam != null) {
+      _lastPickCount = picks.length;
+    }
+
     return Column(
       children: [
         Row(
@@ -522,7 +586,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                     );
                   }),
                 ],
-                onChanged: (v) => setState(() => pickLogTeamFilter = v),
+                onChanged: (v) => setState(() {
+                  pickLogTeamFilter = v;
+                  _pickLogInitialized = true;
+                }),
               ),
             ),
             const SizedBox(width: 6),
@@ -546,6 +613,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
             child: picks.isEmpty
                 ? const Center(child: Text('No picks yet.'))
                 : ListView.separated(
+                    controller: _pickLogScroll,
                     itemCount: picks.length,
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (context, i) {
