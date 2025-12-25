@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../logic/draft_state.dart';
 import '../providers.dart';
 import '../../../theme/app_theme.dart';
@@ -22,11 +23,13 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
         state.userTeams.map((t) => t.toUpperCase()).toList()..sort();
     final filter = _teamFilter;
 
+    final teamColors = _teamColorMap(state);
     final picks = state.picksMade
         .where((p) => userTeams.contains(p.teamAbbr.toUpperCase()))
         .where((p) => filter == null || p.teamAbbr.toUpperCase() == filter)
         .toList()
       ..sort((a, b) => a.pick.pickOverall.compareTo(b.pick.pickOverall));
+    final tradeEntries = _filteredTrades(state, userTeams, _teamFilter);
 
     return Scaffold(
       appBar: AppBar(
@@ -34,7 +37,7 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
         actions: [
           IconButton(
             tooltip: 'Home',
-            onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
+            onPressed: () => context.go('/'),
             icon: const Icon(Icons.home),
           ),
         ],
@@ -71,7 +74,14 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                                     ...userTeams.map(
                                       (t) => DropdownMenuItem<String?>(
                                         value: t,
-                                        child: Text(t),
+                                        child: Text(
+                                          t,
+                                          style: TextStyle(
+                                            color: teamColors[t] ??
+                                                AppColors.text,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -85,6 +95,32 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      if (tradeEntries.isNotEmpty) ...[
+                        Panel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Trades Made',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ...tradeEntries.map(
+                                (t) => Text(
+                                  '• ${t.summary}',
+                                  style: TextStyle(
+                                    color: _tradeTextColor(t, teamColors),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       Expanded(
                         child: ListView.separated(
                           itemCount: picks.length,
@@ -118,6 +154,34 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                                           ),
                                         ),
                                       ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: (teamColors[
+                                                  pr.teamAbbr.toUpperCase()] ??
+                                              AppColors.blue)
+                                          .withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(
+                                        color: teamColors[
+                                                pr.teamAbbr.toUpperCase()] ??
+                                            AppColors.blue,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      pr.teamAbbr.toUpperCase(),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: teamColors[
+                                                pr.teamAbbr.toUpperCase()] ??
+                                            AppColors.text,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -223,6 +287,78 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
     final college = pr.prospect.college ?? '';
     if (college.isEmpty) return '';
     return ' • $college';
+  }
+
+  List<TradeLogEntry> _filteredTrades(
+    DraftState state,
+    List<String> userTeams,
+    String? teamFilter,
+  ) {
+    if (state.tradeLog.isEmpty) return const [];
+    if (teamFilter != null) {
+      return state.tradeLog
+          .where((t) =>
+              t.fromTeam.toUpperCase() == teamFilter ||
+              t.toTeam.toUpperCase() == teamFilter)
+          .toList();
+    }
+    final userSet = userTeams.map((t) => t.toUpperCase()).toSet();
+    return state.tradeLog
+        .where((t) =>
+            userSet.contains(t.fromTeam.toUpperCase()) ||
+            userSet.contains(t.toTeam.toUpperCase()))
+        .toList();
+  }
+
+  Color _tradeTextColor(
+    TradeLogEntry entry,
+    Map<String, Color> teamColors,
+  ) {
+    final from = entry.fromTeam.toUpperCase();
+    final to = entry.toTeam.toUpperCase();
+    return teamColors[from] ??
+        teamColors[to] ??
+        AppColors.textMuted;
+  }
+
+  Map<String, Color> _teamColorMap(DraftState state) {
+    final map = <String, Color>{};
+    for (final t in state.teams) {
+      final abbr = t.abbreviation.toUpperCase();
+      final color = _parseTeamColor(t.colors);
+      if (color != null) {
+        map[abbr] = color;
+      }
+    }
+    map['CHI'] = const Color(0xFFC83803);
+    return map;
+  }
+
+  Color? _parseTeamColor(List<String>? colors) {
+    if (colors == null || colors.isEmpty) return null;
+    for (final raw in colors) {
+      final c = _parseColorString(raw);
+      if (c != null) return c;
+    }
+    return null;
+  }
+
+  Color? _parseColorString(String raw) {
+    var value = raw.trim();
+    if (value.isEmpty) return null;
+    if (value.startsWith('0x')) {
+      value = value.substring(2);
+    }
+    if (value.startsWith('#')) {
+      value = value.substring(1);
+    }
+    if (value.length == 6) {
+      value = 'FF$value';
+    }
+    if (value.length != 8) return null;
+    final parsed = int.tryParse(value, radix: 16);
+    if (parsed == null) return null;
+    return Color(parsed);
   }
 }
 

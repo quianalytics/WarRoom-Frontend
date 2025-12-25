@@ -12,6 +12,7 @@ and where changes should be made when adding features.
 - UI runs in Flutter with Material 3 theming.
 - Data is fetched from a local API (`http://localhost:3000`) via Dio.
 - Draft progress is stored in `SharedPreferences`.
+- Trade settings and recap state are in-memory only (not persisted).
 
 ## Project Layout (Primary Areas)
 - App shell: `lib/main.dart`, `lib/app_router.dart`, `lib/theme/app_theme.dart`.
@@ -45,6 +46,7 @@ and where changes should be made when adding features.
    - `start()` to load data and begin, or
    - `resumeSavedDraft()` to load persisted state.
 3. Clock ticks, picks advance, and state is persisted on major transitions.
+4. When the draft completes, the app prompts the user to view the recap screen.
 
 ## Draft Logic Responsibilities
 `DraftController` (`lib/features/draft/logic/draft_controller.dart`) owns:
@@ -54,6 +56,8 @@ and where changes should be made when adding features.
 - CPU selection scheduling and execution.
 - Trade evaluation and application.
 - Draft persistence (save/clear).
+- Automated trade offers and CPU-to-CPU trades.
+- Trade inbox and logging for recap display.
 
 ## Clock and Timing
 - `DraftClock` (`lib/features/draft/logic/draft_clock.dart`) is a simple timer that
@@ -71,6 +75,8 @@ and where changes should be made when adding features.
   team needs, and board quality. It supports multi-asset trades and future picks.
 - Trade context is derived from the earliest current-year pick offered by the
   user team (fallbacks to the on-clock pick if none is offered).
+- Automated trades can occur during the draft. User-targeted offers are queued
+  in the trade inbox, and CPU-to-CPU trades are logged for recap display.
 
 ## Data Access
 - `DraftRepository` (`lib/features/draft/data/draft_repository.dart`) wraps `Dio`:
@@ -130,6 +136,7 @@ Parsing notes:
 ## Persistence
 - `LocalStore` (`lib/core/storage/local_store.dart`) stores draft state by year.
 - The persisted payload is the `DraftState` JSON plus pick results.
+- Trade inbox, trade log, and recap grades are not persisted.
 
 ## Domain Model Notes
 - Models: `DraftPick`, `Prospect`, `Team`, `Trade`, `DraftState`.
@@ -137,14 +144,18 @@ Parsing notes:
   and future-year offers.
 - `Prospect` has defensive parsing for `_id` and numeric fields to tolerate
   inconsistent backend typing.
+- `DraftState` now tracks `pendingTrade`, `tradeInbox`, and `tradeLog` for
+  automated trade flows and recap display.
 
 ## UI Architecture
 - Home screen: `lib/features/home/home_screen.dart` is a lightweight entry point
   that routes into setup.
 - Setup flow: `lib/features/setup/setup_screen.dart` is a simple stateful view
-  that prepares query params for the draft route, including CPU speed selection.
+  that prepares query params for the draft route, including CPU speed selection
+  and trade tuning. Team labels are colored by team brand.
 - Draft recap: `lib/features/draft/ui/draft_recap_screen.dart` shows user picks
-  with per-pick grades and an overall class grade.
+  with per-pick grades and an overall class grade, plus a trade history section
+  filtered by the selected team.
 - Draft room: `lib/features/draft/ui/draft_room_screen.dart` composes:
   - Header with pick/clock
   - Big board list
@@ -156,6 +167,8 @@ Parsing notes:
   not on the clock, and the current pick is selectable (not forced).
 - Pick log defaults to a user-controlled team but allows `All Teams`, and auto-
   scrolls to the newest pick when in `All Teams` mode.
+- Team colors are used in multiple UI surfaces (draft recap, pick log filters,
+  trade dialogs, trade inbox, and trade sheets).
 - Shared UI primitives: `lib/ui/panel.dart`, `lib/ui/icon_pill.dart`.
 - Theme tokens: `lib/theme/app_theme.dart` (colors, radii, spacing).
 
@@ -178,6 +191,7 @@ Parsing notes:
 - Trade sheets show user-controlled team assets on the left; when multiple user
   teams exist, the user selects which team to trade for.
 - 2027 draft selection shows a "coming soon" dialog and blocks navigation.
+- Team color palette in setup is locally defined; API colors may differ.
 
 ## Testing and Validation (Current State)
 - No automated tests referenced yet.

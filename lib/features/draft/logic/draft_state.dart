@@ -55,7 +55,7 @@ class DraftState {
   final bool clockRunning;
   final TradeOffer? pendingTrade;
   final List<TradeOffer> tradeInbox;
-  final List<String> tradeLog;
+  final List<TradeLogEntry> tradeLog;
   final int tradeLogVersion;
 
   const DraftState({
@@ -90,7 +90,7 @@ class DraftState {
     clockRunning: false,
     pendingTrade: null,
     tradeInbox: const <TradeOffer>[],
-    tradeLog: const <String>[],
+    tradeLog: const <TradeLogEntry>[],
     tradeLogVersion: 0,
   );
   
@@ -128,7 +128,7 @@ class DraftState {
     clockRunning: json['clockRunning'] as bool,
     pendingTrade: null,
     tradeInbox: const <TradeOffer>[],
-    tradeLog: const <String>[],
+    tradeLog: const <TradeLogEntry>[],
     tradeLogVersion: 0,
   );
 
@@ -177,10 +177,22 @@ class DraftState {
           : tradeInbox as List<TradeOffer>,
       tradeLog: identical(tradeLog, _noTradeLog)
           ? this.tradeLog
-          : tradeLog as List<String>,
+          : tradeLog as List<TradeLogEntry>,
       tradeLogVersion: identical(tradeLogVersion, _noTradeLogVersion)
           ? this.tradeLogVersion
           : tradeLogVersion as int,
     );
   }
+}
+
+class TradeLogEntry {
+  final String summary;
+  final String fromTeam;
+  final String toTeam;
+
+  const TradeLogEntry({
+    required this.summary,
+    required this.fromTeam,
+    required this.toTeam,
+  });
 }

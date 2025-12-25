@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers.dart';
+import '../logic/draft_controller.dart';
 import '../logic/draft_speed.dart';
 import '../logic/draft_state.dart';
 import '../models/trade.dart';
@@ -94,6 +95,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     BuildContext context,
     TradeOffer offer,
   ) {
+    final teamColors = _teamColorMap(ref.read(draftControllerProvider));
     return showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -105,14 +107,22 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
               children: [
                 Text(
                   '${offer.fromTeam} offers',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: teamColors[offer.fromTeam.toUpperCase()] ??
+                        AppColors.text,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 ...offer.fromAssets.map((a) => Text('• ${_assetLabel(a)}')),
                 const SizedBox(height: 12),
                 Text(
-                  'In exchange for',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  'In exchange for ${offer.toTeam}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: teamColors[offer.toTeam.toUpperCase()] ??
+                        AppColors.text,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 ...offer.toAssets.map((a) => Text('• ${_assetLabel(a)}')),
@@ -192,6 +202,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
           builder: (context, ref, _) {
             final current = ref.watch(draftControllerProvider);
             final controller = ref.read(draftControllerProvider.notifier);
+            final teamColors = _teamColorMap(current);
             return SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -199,11 +210,26 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      'Trade Inbox',
+                      'Trade Center',
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 12),
+                    Panel(
+                      padding: const EdgeInsets.all(12),
+                      child: _tradeSettingsSection(controller),
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Inbox (${current.tradeInbox.length})',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     if (current.tradeInbox.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 24),
@@ -224,18 +250,25 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                                 children: [
                                   Text(
                                     '${offer.fromTeam} offers',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w800,
+                                      color: teamColors[
+                                              offer.fromTeam.toUpperCase()] ??
+                                          AppColors.text,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
                                   ...offer.fromAssets
                                       .map((a) => Text('• ${_assetLabel(a)}')),
                                   const SizedBox(height: 10),
-                                  const Text(
-                                    'In exchange for',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w700),
+                                  Text(
+                                    'In exchange for ${offer.toTeam}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: teamColors[
+                                              offer.toTeam.toUpperCase()] ??
+                                          AppColors.text,
+                                    ),
                                   ),
                                   const SizedBox(height: 6),
                                   ...offer.toAssets
@@ -281,8 +314,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     );
   }
 
-  Future<void> _showTradeSettings(BuildContext context) async {
-    final controller = ref.read(draftControllerProvider.notifier);
+  Widget _tradeSettingsSection(DraftController controller) {
     final freqOptions = const [
       ('Low', 0.12),
       ('Normal', 0.22),
@@ -294,73 +326,60 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
       ('Strict', 0.04),
     ];
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Trade Settings',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text('Frequency:'),
-                    const SizedBox(width: 12),
-                    DropdownButton<double>(
-                      value: _tradeFrequency,
-                      items: freqOptions
-                          .map(
-                            (o) => DropdownMenuItem<double>(
-                              value: o.$2,
-                              child: Text(o.$1),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) {
-                        if (v == null) return;
-                        setState(() => _tradeFrequency = v);
-                        controller.setTradeSettings(frequency: v);
-                      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Trade Settings',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            const Text('Frequency:'),
+            const SizedBox(width: 12),
+            DropdownButton<double>(
+              value: _tradeFrequency,
+              items: freqOptions
+                  .map(
+                    (o) => DropdownMenuItem<double>(
+                      value: o.$2,
+                      child: Text(o.$1),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text('Strictness:'),
-                    const SizedBox(width: 12),
-                    DropdownButton<double>(
-                      value: _tradeStrictness,
-                      items: strictOptions
-                          .map(
-                            (o) => DropdownMenuItem<double>(
-                              value: o.$2,
-                              child: Text(o.$1),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) {
-                        if (v == null) return;
-                        setState(() => _tradeStrictness = v);
-                        controller.setTradeSettings(strictness: v);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-              ],
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _tradeFrequency = v);
+                controller.setTradeSettings(frequency: v);
+              },
             ),
-          ),
-        );
-      },
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            const Text('Strictness:'),
+            const SizedBox(width: 12),
+            DropdownButton<double>(
+              value: _tradeStrictness,
+              items: strictOptions
+                  .map(
+                    (o) => DropdownMenuItem<double>(
+                      value: o.$2,
+                      child: Text(o.$1),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _tradeStrictness = v);
+                controller.setTradeSettings(strictness: v);
+              },
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -419,12 +438,6 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
           ),
 
           _tradeInboxButton(state),
-
-          IconPill(
-            icon: Icons.tune,
-            tooltip: 'Trade Settings',
-            onPressed: () => _showTradeSettings(context),
-          ),
 
           IconPill(
             icon: Icons.exit_to_app,
@@ -520,7 +533,8 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     ref.listen<DraftState>(draftControllerProvider, (prev, next) {
       if (prev == null) return;
       if (next.tradeLogVersion == prev.tradeLogVersion) return;
-      final message = next.tradeLog.isNotEmpty ? next.tradeLog.last : null;
+      final message =
+          next.tradeLog.isNotEmpty ? next.tradeLog.last.summary : null;
       if (message == null || !mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
@@ -554,6 +568,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
 
   Widget _content(BuildContext context, DraftState state) {
     final pick = state.currentPick;
+    final teamColors = _teamColorMap(state);
 
     final filtered =
         state.availableProspects.where((p) {
@@ -883,6 +898,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   }
 
   Widget _pickLogPanel(DraftState state) {
+    final teamColors = _teamColorMap(state);
     // Dropdown options from ALL teams (so it exists even before picks happen)
     final allTeams =
         state.teams.map((t) => t.abbreviation.toUpperCase()).toList()..sort();
@@ -971,19 +987,25 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                   child: DropdownButton<String?>(
                     isExpanded: true,
                     value: pickLogTeamFilter,
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('All Teams'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('All Teams'),
+                  ),
+                  ...orderedTeams.map((abbr) {
+                    final c = counts[abbr] ?? 0;
+                    return DropdownMenuItem<String?>(
+                      value: abbr,
+                      child: Text(
+                        '$abbr ($c)',
+                        style: TextStyle(
+                          color: teamColors[abbr] ?? AppColors.text,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      ...orderedTeams.map((abbr) {
-                        final c = counts[abbr] ?? 0;
-                        return DropdownMenuItem<String?>(
-                          value: abbr,
-                          child: Text('$abbr ($c)'),
-                        );
-                      }),
-                    ],
+                    );
+                  }),
+                ],
                     onChanged: (v) => setState(() {
                       pickLogTeamFilter = v;
                       _pickLogInitialized = true;
@@ -1029,6 +1051,9 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                               _lastPickFocusId == _pickKey(pick)
                           ? _lastPickTileKey
                           : ValueKey('pick-${_pickKey(pick)}');
+                      final teamColor =
+                          teamColors[pick.teamAbbr.toUpperCase()] ??
+                              AppColors.textMuted;
                       return ListTile(
                         key: key,
                         dense: true,
@@ -1051,7 +1076,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                           '${pick.pickOverall}. ${pick.teamAbbr}  •  R${pick.round}.${pick.pickInRound.toString().padLeft(2, '0')}$via  •  $detail',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: AppColors.textMuted),
+                          style: TextStyle(color: teamColor),
                         ),
                       );
                     },
@@ -1113,8 +1138,49 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     return ' • via $original';
   }
 
+  Map<String, Color> _teamColorMap(DraftState state) {
+    final map = <String, Color>{};
+    for (final t in state.teams) {
+      final abbr = t.abbreviation.toUpperCase();
+      final color = _parseTeamColor(t.colors);
+      if (color != null) {
+        map[abbr] = color;
+      }
+    }
+    map['CHI'] = const Color(0xFFC83803);
+    return map;
+  }
+
+  Color? _parseTeamColor(List<String>? colors) {
+    if (colors == null || colors.isEmpty) return null;
+    for (final raw in colors) {
+      final c = _parseColorString(raw);
+      if (c != null) return c;
+    }
+    return null;
+  }
+
+  Color? _parseColorString(String raw) {
+    var value = raw.trim();
+    if (value.isEmpty) return null;
+    if (value.startsWith('0x')) {
+      value = value.substring(2);
+    }
+    if (value.startsWith('#')) {
+      value = value.substring(1);
+    }
+    if (value.length == 6) {
+      value = 'FF$value';
+    }
+    if (value.length != 8) return null;
+    final parsed = int.tryParse(value, radix: 16);
+    if (parsed == null) return null;
+    return Color(parsed);
+  }
+
   Widget _onClockFooter(DraftState state) {
     final controller = ref.read(draftControllerProvider.notifier);
+    final teamColors = _teamColorMap(state);
 
     final canTrade = !state.isComplete && state.currentPick != null;
     final canRun = !state.isUserOnClock && !state.isComplete;
@@ -1122,14 +1188,34 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     return Row(
       children: [
         Expanded(
-          child: Text(
-            state.isComplete
-                ? 'Draft complete'
-                : 'On the clock: ${state.onClockTeam} • ${state.currentPick?.label}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: AppColors.textMuted),
-          ),
+          child: state.isComplete
+              ? const Text(
+                  'Draft complete',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: AppColors.textMuted),
+                )
+              : RichText(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                    style: const TextStyle(color: AppColors.textMuted),
+                    children: [
+                      const TextSpan(text: 'On the clock: '),
+                      TextSpan(
+                        text: state.onClockTeam,
+                        style: TextStyle(
+                          color: teamColors[state.onClockTeam] ??
+                              AppColors.text,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' • ${state.currentPick?.label}',
+                      ),
+                    ],
+                  ),
+                ),
         ),
         const SizedBox(width: 8),
         // if (canRun)

@@ -68,7 +68,7 @@ class DraftController extends StateNotifier<DraftState> {
         clockRunning: true,
         pendingTrade: null,
         tradeInbox: const <TradeOffer>[],
-        tradeLog: const <String>[],
+        tradeLog: const <TradeLogEntry>[],
         tradeLogVersion: 0,
       );
 
@@ -279,7 +279,7 @@ class DraftController extends StateNotifier<DraftState> {
 
     if (!_trades.accept(offer, context: context)) return false;
 
-    _applyTrade(offer);
+    _applyTrade(offer, log: true);
     state = state.copyWith(pendingTrade: null);
     return true;
   }
@@ -304,7 +304,7 @@ class DraftController extends StateNotifier<DraftState> {
     }
   }
 
-  void _applyTrade(TradeOffer offer) {
+  void _applyTrade(TradeOffer offer, {bool log = false}) {
     // Update order ownership for any picks in the offer lists
     final toAssets = offer.toAssets
         .where((a) => a.pick != null)
@@ -333,6 +333,7 @@ class DraftController extends StateNotifier<DraftState> {
     }).toList();
 
     state = state.copyWith(order: updatedOrder);
+    if (log) _recordTrade(offer);
   }
 
   void _queueTradeOffer(TradeOffer offer) {
@@ -408,8 +409,7 @@ class DraftController extends StateNotifier<DraftState> {
     }
 
     if (_cpuAccepts(offer) && _cpuAccepts(_swapOffer(offer))) {
-      _applyTrade(offer);
-      _logCpuTrade(offer);
+      _applyTrade(offer, log: true);
     }
   }
 
@@ -528,11 +528,18 @@ class DraftController extends StateNotifier<DraftState> {
     );
   }
 
-  void _logCpuTrade(TradeOffer offer) {
+  void _recordTrade(TradeOffer offer) {
     final fromList = offer.fromAssets.map(_assetLabel).join(', ');
     final toList = offer.toAssets.map(_assetLabel).join(', ');
     final summary = '${offer.fromTeam} → ${offer.toTeam}: $fromList for $toList';
-    final log = [...state.tradeLog, summary];
+    final log = [
+      ...state.tradeLog,
+      TradeLogEntry(
+        summary: summary,
+        fromTeam: offer.fromTeam,
+        toTeam: offer.toTeam,
+      ),
+    ];
     state = state.copyWith(
       tradeLog: log,
       tradeLogVersion: state.tradeLogVersion + 1,

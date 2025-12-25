@@ -75,6 +75,7 @@ class _TradeSheetState extends State<TradeSheet> {
     final userTeams = widget.userTeams.map((t) => t.toUpperCase()).toList();
     userTeam ??= userTeams.isNotEmpty ? userTeams.first : widget.state.onClockTeam;
     final partnerTeams = allTeams.where((t) => t != userTeam).toList();
+    final teamColors = _teamColorMap();
 
     final partnerPicks = partner == null ? <DraftPick>[] : _futureOwnedPicksFor(partner!);
     final userPicks = _ownedPicksIncludingCurrent(userTeam!);
@@ -95,7 +96,20 @@ class _TradeSheetState extends State<TradeSheet> {
               DropdownButtonFormField<String>(
                 value: userTeam,
                 decoration: const InputDecoration(labelText: 'Your team', border: OutlineInputBorder()),
-                items: userTeams.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                items: userTeams
+                    .map(
+                      (t) => DropdownMenuItem(
+                        value: t,
+                        child: Text(
+                          t,
+                          style: TextStyle(
+                            color: teamColors[t] ?? Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (v) => setState(() {
                   userTeam = v;
                   partner = null;
@@ -109,7 +123,20 @@ class _TradeSheetState extends State<TradeSheet> {
             DropdownButtonFormField<String>(
               value: partner,
               decoration: const InputDecoration(labelText: 'Trade partner', border: OutlineInputBorder()),
-              items: partnerTeams.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+              items: partnerTeams
+                  .map(
+                    (t) => DropdownMenuItem(
+                      value: t,
+                      child: Text(
+                        t,
+                        style: TextStyle(
+                          color: teamColors[t] ?? Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
               onChanged: (v) => setState(() {
                 partner = v;
                 selectedPartner.clear();
@@ -130,7 +157,12 @@ class _TradeSheetState extends State<TradeSheet> {
                         children: [
                           Text(
                             '${userTeam!.toUpperCase()} assets',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color:
+                                  teamColors[userTeam!.toUpperCase()] ??
+                                      Colors.white,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           ..._buildPickSection(
@@ -153,7 +185,12 @@ class _TradeSheetState extends State<TradeSheet> {
                         children: [
                           Text(
                             '${partner!.toUpperCase()} assets',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color:
+                                  teamColors[partner!.toUpperCase()] ??
+                                      Colors.white,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           ..._buildPickSection(
@@ -273,6 +310,46 @@ class _TradeSheetState extends State<TradeSheet> {
       }),
       const SizedBox(height: 10),
     ];
+  }
+
+  Map<String, Color> _teamColorMap() {
+    final map = <String, Color>{};
+    for (final t in widget.state.teams) {
+      final abbr = t.abbreviation.toUpperCase();
+      final color = _parseTeamColor(t.colors);
+      if (color != null) {
+        map[abbr] = color;
+      }
+    }
+    map['CHI'] = const Color(0xFFC83803);
+    return map;
+  }
+
+  Color? _parseTeamColor(List<String>? colors) {
+    if (colors == null || colors.isEmpty) return null;
+    for (final raw in colors) {
+      final c = _parseColorString(raw);
+      if (c != null) return c;
+    }
+    return null;
+  }
+
+  Color? _parseColorString(String raw) {
+    var value = raw.trim();
+    if (value.isEmpty) return null;
+    if (value.startsWith('0x')) {
+      value = value.substring(2);
+    }
+    if (value.startsWith('#')) {
+      value = value.substring(1);
+    }
+    if (value.length == 6) {
+      value = 'FF$value';
+    }
+    if (value.length != 8) return null;
+    final parsed = int.tryParse(value, radix: 16);
+    if (parsed == null) return null;
+    return Color(parsed);
   }
 
 }

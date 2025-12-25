@@ -90,6 +90,8 @@ class _SetupScreenState extends State<SetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final teamColors = _teamColorMap();
+
     return Scaffold(
       appBar: AppBar(title: const Text('WarRoom Draft Setup')),
       body: Container(
@@ -202,7 +204,13 @@ class _SetupScreenState extends State<SetupScreen> {
                       return CheckboxListTile(
                         dense: true,
                         value: isOn,
-                        title: Text(abbr),
+                        title: Text(
+                          abbr,
+                          style: TextStyle(
+                            color: teamColors[abbr] ?? AppColors.text,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         onChanged: (v) {
                           setState(() {
                             if (v == true) {
@@ -260,5 +268,86 @@ class _SetupScreenState extends State<SetupScreen> {
         ),
       ),
     );
+  }
+
+  Map<String, Color> _teamColorMap() {
+    final map = <String, Color>{};
+    for (final t in allTeams) {
+      final color = _colorForAbbr(t);
+      if (color != null) {
+        map[t] = color;
+      }
+    }
+    return map;
+  }
+
+  Color? _colorForAbbr(String abbr) {
+    switch (abbr) {
+      case 'ARI':
+        return const Color(0xFF97233F);
+      case 'ATL':
+        return const Color(0xFFA71930);
+      case 'BAL':
+        return const Color(0xFF241773);
+      case 'BUF':
+        return const Color(0xFF00338D);
+      case 'CAR':
+        return const Color(0xFF0085CA);
+      case 'CHI':
+        return const Color(0xFFC83803);
+      case 'CIN':
+        return const Color(0xFFFB4F14);
+      case 'CLE':
+        return const Color(0xFF311D00);
+      case 'DAL':
+        return const Color(0xFF003594);
+      case 'DEN':
+        return const Color(0xFFFB4F14);
+      case 'DET':
+        return const Color(0xFF0076B6);
+      case 'GB':
+        return const Color(0xFF203731);
+      case 'HOU':
+        return const Color(0xFF03202F);
+      case 'IND':
+        return const Color(0xFF002C5F);
+      case 'JAX':
+        return const Color(0xFF006778);
+      case 'KC':
+        return const Color(0xFFE31837);
+      case 'LV':
+        return const Color(0xFFA5ACAF);
+      case 'LAC':
+        return const Color(0xFF0080C6);
+      case 'LAR':
+        return const Color(0xFF003594);
+      case 'MIA':
+        return const Color(0xFF008E97);
+      case 'MIN':
+        return const Color(0xFF4F2683);
+      case 'NE':
+        return const Color(0xFF002244);
+      case 'NO':
+        return const Color(0xFFD3BC8D);
+      case 'NYG':
+        return const Color(0xFF0B2265);
+      case 'NYJ':
+        return const Color(0xFF125740);
+      case 'PHI':
+        return const Color(0xFF004C54);
+      case 'PIT':
+        return const Color(0xFFFFB612);
+      case 'SF':
+        return const Color(0xFFAA0000);
+      case 'SEA':
+        return const Color(0xFF002244);
+      case 'TB':
+        return const Color(0xFFD50A0A);
+      case 'TEN':
+        return const Color(0xFF0C2340);
+      case 'WAS':
+        return const Color(0xFF5A1414);
+    }
+    return null;
   }
 }
