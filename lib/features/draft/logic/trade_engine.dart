@@ -69,33 +69,46 @@ class TradeEngine {
   }
 
   double _acceptThreshold(TradeOffer offer, TradeContext context) {
-    var threshold = 0.92;
+    var threshold = 0.88;
 
-    // Earlier picks demand stronger returns.
+    // Earlier picks demand stronger returns, but soften the curve.
     final overall = context.currentPick.pickOverall;
     if (overall <= 5) {
-      threshold += 0.08;
+      threshold += 0.06;
     } else if (overall <= 10) {
-      threshold += 0.05;
+      threshold += 0.04;
     } else if (overall <= 20) {
-      threshold += 0.03;
+      threshold += 0.025;
     } else if (overall <= 32) {
-      threshold += 0.02;
+      threshold += 0.015;
     }
 
     // If top prospects match team needs, be less willing to move.
     threshold += _needsPremium(context.toTeam, context.availableProspects);
     threshold += _eliteBoardPremium(context.availableProspects);
 
-    // Future picks add uncertainty.
+    // Future picks add uncertainty, but only lightly.
     if (_hasFutureAssets(offer.fromAssets, context.currentYear)) {
-      threshold += 0.02;
+      threshold += 0.01;
     }
 
     // Trade-down incentive if receiving multiple later picks.
     threshold -= _tradeDownIncentive(offer, context.currentPick);
 
-    return threshold.clamp(0.85, 1.15);
+    // Sweeten if the partner is sending multiple assets.
+    final incomingCount = offer.fromAssets.length;
+    if (incomingCount >= 3) {
+      threshold -= 0.03;
+    } else if (incomingCount == 2) {
+      threshold -= 0.02;
+    }
+
+    // Accept slight overpay discounts for mid/late picks to keep flow moving.
+    if (overall >= 40) {
+      threshold -= 0.02;
+    }
+
+    return threshold.clamp(0.82, 1.12);
   }
 
   double _needsPremium(Team? team, List<Prospect> board) {
@@ -115,8 +128,8 @@ class TradeEngine {
         .where((p) => needs.contains(p.position.toUpperCase()))
         .length;
 
-    if (matches >= 3) return 0.06;
-    if (matches >= 1) return 0.03;
+    if (matches >= 3) return 0.04;
+    if (matches >= 1) return 0.02;
     return 0;
   }
 
@@ -127,8 +140,8 @@ class TradeEngine {
       ..sort((a, b) => a.rank!.compareTo(b.rank!));
     if (ranked.isEmpty) return 0;
     final best = ranked.first.rank!;
-    if (best <= 5) return 0.04;
-    if (best <= 10) return 0.02;
+    if (best <= 5) return 0.03;
+    if (best <= 10) return 0.015;
     return 0;
   }
 

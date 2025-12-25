@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'features/home/home_screen.dart';
 import 'features/setup/setup_screen.dart';
 import 'features/draft/ui/draft_room_screen.dart';
 import 'features/draft/logic/draft_speed.dart';
@@ -9,6 +10,10 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(
       path: '/',
+      builder: (_, __) => const HomeScreen(),
+    ),
+    GoRoute(
+      path: '/setup',
       builder: (_, __) => const SetupScreen(),
     ),
     GoRoute(

@@ -130,6 +130,24 @@ class WarRoomDraftApp extends StatelessWidget {
         color: AppColors.borderStrong,
         thickness: 1,
       ),
+
+      dropdownMenuTheme: DropdownMenuThemeData(
+        menuStyle: MenuStyle(
+          backgroundColor: WidgetStateProperty.all(AppColors.surface),
+          surfaceTintColor: WidgetStateProperty.all(Colors.transparent),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: AppRadii.r16),
+          ),
+          side: WidgetStateProperty.all(
+            const BorderSide(color: AppColors.borderStrong),
+          ),
+          elevation: WidgetStateProperty.all(8),
+        ),
+        textStyle: const TextStyle(
+          color: AppColors.text,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
 
     return MaterialApp.router(

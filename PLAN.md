@@ -23,7 +23,8 @@ and where changes should be made when adding features.
 ## App Shell and Routing
 - `lib/main.dart` wires `ProviderScope`, global theme, and `MaterialApp.router`.
 - `lib/app_router.dart` defines `GoRouter` routes:
-  - `/` -> `SetupScreen`
+  - `/` -> `HomeScreen`
+  - `/setup` -> `SetupScreen`
   - `/draft` -> `DraftRoomScreen`, with query params:
     - `year` (int)
     - `teams` (comma list of team abbreviations)
@@ -136,6 +137,8 @@ Parsing notes:
   inconsistent backend typing.
 
 ## UI Architecture
+- Home screen: `lib/features/home/home_screen.dart` is a lightweight entry point
+  that routes into setup.
 - Setup flow: `lib/features/setup/setup_screen.dart` is a simple stateful view
   that prepares query params for the draft route, including CPU speed selection.
 - Draft room: `lib/features/draft/ui/draft_room_screen.dart` composes:
