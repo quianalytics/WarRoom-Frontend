@@ -241,7 +241,7 @@ class DraftController extends StateNotifier<DraftState> {
   /// Trade: swap ownership of picks (MVP uses pick swaps only)
   /// You’ll call this from a UI trade sheet.
   bool proposeTrade(TradeOffer offer) {
-    final pick = state.currentPick;
+    final pick = _contextPickFor(offer) ?? state.currentPick;
     if (pick == null) return false;
 
     final context = TradeContext(
@@ -283,6 +283,17 @@ class DraftController extends StateNotifier<DraftState> {
 
     state = state.copyWith(order: updatedOrder);
     return true;
+  }
+
+  DraftPick? _contextPickFor(TradeOffer offer) {
+    final toPicks = offer.toAssets
+        .where((a) => a.pick != null)
+        .map((a) => a.pick!)
+        .where((p) => p.year == state.year)
+        .toList();
+    if (toPicks.isEmpty) return null;
+    toPicks.sort((a, b) => a.pickOverall.compareTo(b.pickOverall));
+    return toPicks.first;
   }
 
   bool _samePick(DraftPick a, DraftPick b) {

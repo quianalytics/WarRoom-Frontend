@@ -693,14 +693,17 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                 context: context,
                 isScrollControlled: true,
                 builder: (_) =>
-                    TradeSheet(state: state, currentTeam: state.onClockTeam),
+                    TradeSheet(
+                      state: state,
+                      userTeams: widget.controlledTeams,
+                    ),
               );
               if (result == null) return;
 
               final pick = state.currentPick!;
               final offer = TradeOffer(
                 fromTeam: result.partnerTeam,
-                toTeam: pick.teamAbbr,
+                toTeam: result.userTeam,
                 fromAssets: result.partnerAssets,
                 toAssets: result.userAssets,
               );

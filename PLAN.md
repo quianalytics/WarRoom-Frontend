@@ -63,6 +63,8 @@ and where changes should be made when adding features.
 - `TradeEngine` (`lib/features/draft/logic/trade_engine.dart`) uses a Rich Hill
   value curve approximation, plus context-aware thresholds based on pick slot,
   team needs, and board quality. It supports multi-asset trades and future picks.
+- Trade context is derived from the earliest current-year pick offered by the
+  user team (fallbacks to the on-clock pick if none is offered).
 
 ## Data Access
 - `DraftRepository` (`lib/features/draft/data/draft_repository.dart`) wraps `Dio`:
@@ -140,7 +142,8 @@ Parsing notes:
   - On-clock footer
 - Widgets in `lib/features/draft/ui/widgets/` are feature-specific surfaces.
 - `TradeSheet` now supports multi-pick packages from both sides and future-year
-  picks (next 2 drafts).
+  picks (next 2 drafts), shown side-by-side by team. The user can trade even when
+  not on the clock, and the current pick is selectable (not forced).
 - Shared UI primitives: `lib/ui/panel.dart`, `lib/ui/icon_pill.dart`.
 - Theme tokens: `lib/theme/app_theme.dart` (colors, radii, spacing).
 
@@ -160,6 +163,8 @@ Parsing notes:
 - Setup uses a static team list; could be replaced by `/teams` API.
 - Trade engine uses a Rich Hill-style curve approximation, not a hard-coded table.
 - Future picks are modeled as generic round slots with no protections.
+- Trade sheets show user-controlled team assets on the left; when multiple user
+  teams exist, the user selects which team to trade for.
 
 ## Testing and Validation (Current State)
 - No automated tests referenced yet.

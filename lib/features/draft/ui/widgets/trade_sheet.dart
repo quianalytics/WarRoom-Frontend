@@ -7,11 +7,13 @@ class TradeSheetResult {
   final String partnerTeam;
   final List<TradeAsset> partnerAssets;
   final List<TradeAsset> userAssets;
+  final String userTeam;
 
   TradeSheetResult({
     required this.partnerTeam,
     required this.partnerAssets,
     required this.userAssets,
+    required this.userTeam,
   });
 }
 
@@ -19,11 +21,11 @@ class TradeSheet extends StatefulWidget {
   const TradeSheet({
     super.key,
     required this.state,
-    required this.currentTeam,
+    required this.userTeams,
   });
 
   final DraftState state;
-  final String currentTeam;
+  final List<String> userTeams;
 
   @override
   State<TradeSheet> createState() => _TradeSheetState();
@@ -33,6 +35,7 @@ class _TradeSheetState extends State<TradeSheet> {
   String? partner;
   final selectedPartner = <String, TradeAsset>{};
   final selectedUser = <String, TradeAsset>{};
+  String? userTeam;
 
   List<DraftPick> _futureOwnedPicksFor(String teamAbbr) {
     final picks = <DraftPick>[];
@@ -68,14 +71,16 @@ class _TradeSheetState extends State<TradeSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final teams = widget.state.teams.map((t) => t.abbreviation.toUpperCase()).toList()..sort();
-    final partnerTeams = teams.where((t) => t != widget.currentTeam.toUpperCase()).toList();
+    final allTeams = widget.state.teams.map((t) => t.abbreviation.toUpperCase()).toList()..sort();
+    final userTeams = widget.userTeams.map((t) => t.toUpperCase()).toList();
+    userTeam ??= userTeams.isNotEmpty ? userTeams.first : widget.state.onClockTeam;
+    final partnerTeams = allTeams.where((t) => t != userTeam).toList();
 
     final partnerPicks = partner == null ? <DraftPick>[] : _futureOwnedPicksFor(partner!);
-    final userPicks = _ownedPicksIncludingCurrent(widget.currentTeam);
+    final userPicks = _ownedPicksIncludingCurrent(userTeam!);
 
     final partnerFuture = partner == null ? <FuturePick>[] : _futureYearPicksFor(partner!);
-    final userFuture = _futureYearPicksFor(widget.currentTeam);
+    final userFuture = _futureYearPicksFor(userTeam!);
 
     return SafeArea(
       child: Padding(
@@ -85,6 +90,21 @@ class _TradeSheetState extends State<TradeSheet> {
           children: [
             const Align(alignment: Alignment.centerLeft, child: Text('Propose Trade', style: TextStyle(fontSize: 18))),
             const SizedBox(height: 10),
+
+            if (userTeams.length > 1) ...[
+              DropdownButtonFormField<String>(
+                value: userTeam,
+                decoration: const InputDecoration(labelText: 'Your team', border: OutlineInputBorder()),
+                items: userTeams.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                onChanged: (v) => setState(() {
+                  userTeam = v;
+                  partner = null;
+                  selectedPartner.clear();
+                  selectedUser.clear();
+                }),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             DropdownButtonFormField<String>(
               value: partner,
@@ -109,7 +129,7 @@ class _TradeSheetState extends State<TradeSheet> {
                       child: ListView(
                         children: [
                           Text(
-                            '${widget.currentTeam.toUpperCase()} assets',
+                            '${userTeam!.toUpperCase()} assets',
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 6),
@@ -117,7 +137,7 @@ class _TradeSheetState extends State<TradeSheet> {
                             title: 'Current picks',
                             picks: userPicks,
                             selected: selectedUser,
-                            ownerLabel: widget.currentTeam,
+                            ownerLabel: userTeam!,
                           ),
                           ..._buildFutureSection(
                             title: 'Future picks',
@@ -168,6 +188,7 @@ class _TradeSheetState extends State<TradeSheet> {
                             partnerTeam: partner!.toUpperCase(),
                             partnerAssets: selectedPartner.values.toList(),
                             userAssets: selectedUser.values.toList(),
+                            userTeam: userTeam!.toUpperCase(),
                           ),
                         );
                       },
