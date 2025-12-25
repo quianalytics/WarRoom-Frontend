@@ -131,16 +131,19 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: state.loading
-          ? const Center(child: CircularProgressIndicator())
-          : state.error != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(state.error!),
-              ),
-            )
-          : _content(context, state),
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppGradients.background),
+        child: state.loading
+            ? const Center(child: CircularProgressIndicator())
+            : state.error != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(state.error!),
+                ),
+              )
+            : _content(context, state),
+      ),
     );
   }
 

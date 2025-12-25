@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_router.dart';
 import './theme/app_theme.dart';
 
@@ -13,41 +14,43 @@ class WarRoomDraftApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final base = ThemeData.dark(useMaterial3: true);
+    final baseText = GoogleFonts.spaceGroteskTextTheme(base.textTheme);
 
     final theme = base.copyWith(
       scaffoldBackgroundColor: AppColors.bg,
       canvasColor: AppColors.bg,
       colorScheme: base.colorScheme.copyWith(
         primary: AppColors.blue,
-        secondary: AppColors.blue,
+        secondary: AppColors.mint,
         surface: AppColors.surface,
       ),
 
       // Typography: slightly tighter + more “product” feel
-      textTheme: base.textTheme.copyWith(
-        titleLarge: base.textTheme.titleLarge?.copyWith(
+      textTheme: baseText.copyWith(
+        titleLarge: baseText.titleLarge?.copyWith(
           fontWeight: FontWeight.w700,
           letterSpacing: -0.2,
         ),
-        titleMedium: base.textTheme.titleMedium?.copyWith(
+        titleMedium: baseText.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
           letterSpacing: -0.1,
         ),
-        bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.25),
+        bodyMedium: baseText.bodyMedium?.copyWith(height: 1.25),
       ),
 
       // AppBar: flatter, cleaner, not “stock Android”
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.bg,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: GoogleFonts.spaceGrotesk(
           color: AppColors.text,
           fontSize: 18,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.2,
         ),
-        iconTheme: IconThemeData(color: AppColors.text),
+        iconTheme: const IconThemeData(color: AppColors.text),
       ),
 
       // Buttons: pill-ish, clean, no heavy shadows
@@ -72,7 +75,7 @@ class WarRoomDraftApp extends StatelessWidget {
             letterSpacing: -0.1,
           ),
           shape: const RoundedRectangleBorder(borderRadius: AppRadii.r16),
-          side: const BorderSide(color: AppColors.border),
+          side: const BorderSide(color: AppColors.borderStrong),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -102,22 +105,22 @@ class WarRoomDraftApp extends StatelessWidget {
         labelStyle: const TextStyle(color: AppColors.textMuted),
         border: OutlineInputBorder(
           borderRadius: AppRadii.r16,
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: const BorderSide(color: AppColors.borderStrong),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: AppRadii.r16,
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: const BorderSide(color: AppColors.borderStrong),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppRadii.r16,
-          borderSide: const BorderSide(color: AppColors.blue, width: 1.2),
+          borderSide: const BorderSide(color: AppColors.blue, width: 1.4),
         ),
       ),
 
       // Chips: clean, consistent
       chipTheme: base.chipTheme.copyWith(
         backgroundColor: AppColors.surface2,
-        side: const BorderSide(color: AppColors.border),
+        side: const BorderSide(color: AppColors.borderStrong),
         labelStyle: const TextStyle(
           color: AppColors.text,
           fontWeight: FontWeight.w600,
@@ -126,7 +129,7 @@ class WarRoomDraftApp extends StatelessWidget {
       ),
 
       dividerTheme: const DividerThemeData(
-        color: AppColors.border,
+        color: AppColors.borderStrong,
         thickness: 1,
       ),
     );

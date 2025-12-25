@@ -28,6 +28,7 @@ and where changes should be made when adding features.
     - `year` (int)
     - `teams` (comma list of team abbreviations)
     - `resume` (1 or absent)
+    - `speed` (draft speed preset name)
 
 ## State Management (Riverpod)
 - Providers are defined in `lib/features/draft/providers.dart`.
@@ -56,6 +57,8 @@ and where changes should be made when adding features.
   drives per-pick countdown and expiration.
 - `DraftSpeed` presets (`lib/features/draft/logic/draft_speed.dart`) define CPU and
   user clock durations and think windows.
+- Speed preset is configurable before starting and can be changed mid-draft via
+  the speed icon in the draft app bar.
 
 ## CPU Drafting and Trades
 - `CpuDraftStrategy` (`lib/features/draft/logic/cpu_strategy.dart`) uses rank and
@@ -134,7 +137,7 @@ Parsing notes:
 
 ## UI Architecture
 - Setup flow: `lib/features/setup/setup_screen.dart` is a simple stateful view
-  that prepares query params for the draft route.
+  that prepares query params for the draft route, including CPU speed selection.
 - Draft room: `lib/features/draft/ui/draft_room_screen.dart` composes:
   - Header with pick/clock
   - Big board list
@@ -144,6 +147,8 @@ Parsing notes:
 - `TradeSheet` now supports multi-pick packages from both sides and future-year
   picks (next 2 drafts), shown side-by-side by team. The user can trade even when
   not on the clock, and the current pick is selectable (not forced).
+- Pick log defaults to a user-controlled team but allows `All Teams`, and auto-
+  scrolls to the newest pick when in `All Teams` mode.
 - Shared UI primitives: `lib/ui/panel.dart`, `lib/ui/icon_pill.dart`.
 - Theme tokens: `lib/theme/app_theme.dart` (colors, radii, spacing).
 
@@ -165,6 +170,7 @@ Parsing notes:
 - Future picks are modeled as generic round slots with no protections.
 - Trade sheets show user-controlled team assets on the left; when multiple user
   teams exist, the user selects which team to trade for.
+- 2027 draft selection shows a "coming soon" dialog and blocks navigation.
 
 ## Testing and Validation (Current State)
 - No automated tests referenced yet.

@@ -12,9 +12,16 @@ class Panel extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        gradient: AppGradients.panel,
         borderRadius: AppRadii.r16,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderStrong),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55000000),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: child,
     );

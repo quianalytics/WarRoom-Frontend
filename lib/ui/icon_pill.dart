@@ -22,9 +22,16 @@ class IconPill extends StatelessWidget {
       icon: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          gradient: AppGradients.pill,
           borderRadius: AppRadii.r16,
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.borderStrong),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x44000000),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
         ),
         child: Icon(icon, size: 14, color: AppColors.text),
       ),
