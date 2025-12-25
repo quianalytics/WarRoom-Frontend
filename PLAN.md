@@ -25,11 +25,13 @@ and where changes should be made when adding features.
 - `lib/app_router.dart` defines `GoRouter` routes:
   - `/` -> `HomeScreen`
   - `/setup` -> `SetupScreen`
+  - `/recap` -> `DraftRecapScreen`
   - `/draft` -> `DraftRoomScreen`, with query params:
     - `year` (int)
     - `teams` (comma list of team abbreviations)
     - `resume` (1 or absent)
     - `speed` (draft speed preset name)
+    - `tradeFreq` / `tradeStrict` (trade tuning presets)
 
 ## State Management (Riverpod)
 - Providers are defined in `lib/features/draft/providers.dart`.
@@ -141,6 +143,8 @@ Parsing notes:
   that routes into setup.
 - Setup flow: `lib/features/setup/setup_screen.dart` is a simple stateful view
   that prepares query params for the draft route, including CPU speed selection.
+- Draft recap: `lib/features/draft/ui/draft_recap_screen.dart` shows user picks
+  with per-pick grades and an overall class grade.
 - Draft room: `lib/features/draft/ui/draft_room_screen.dart` composes:
   - Header with pick/clock
   - Big board list

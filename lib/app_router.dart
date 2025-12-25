@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'features/home/home_screen.dart';
 import 'features/setup/setup_screen.dart';
 import 'features/draft/ui/draft_room_screen.dart';
+import 'features/draft/ui/draft_recap_screen.dart';
 import 'features/draft/logic/draft_speed.dart';
 
 
@@ -15,6 +16,11 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/setup',
       builder: (_, __) => const SetupScreen(),
+    ),
+    GoRoute(
+      path: '/recap',
+      name: 'recap',
+      builder: (_, __) => const DraftRecapScreen(),
     ),
     GoRoute(
       path: '/draft',

@@ -31,7 +31,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Build your board dominate the draft.',
+                        'Dominate the draft.',
                         style: TextStyle(color: AppColors.textMuted),
                       ),
                       const SizedBox(height: 16),

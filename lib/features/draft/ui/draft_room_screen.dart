@@ -50,6 +50,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   String? _lastPickFocusId;
   late double _tradeFrequency;
   late double _tradeStrictness;
+  bool _showedDraftComplete = false;
 
   @override
   void initState() {
@@ -369,6 +370,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     final controller = ref.read(draftControllerProvider.notifier);
     _listenForTradeOffers();
     _listenForCpuTradeLogs();
+    _maybeShowDraftCompletePrompt(state);
 
     return Scaffold(
       appBar: AppBar(
@@ -447,6 +449,34 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
             : _content(context, state),
       ),
     );
+  }
+
+  void _maybeShowDraftCompletePrompt(DraftState state) {
+    if (_showedDraftComplete) return;
+    if (!state.isComplete || !mounted) return;
+    _showedDraftComplete = true;
+    Future.microtask(() async {
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Draft Complete'),
+          content: const Text('View your draft recap and grades?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Later'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('View Recap'),
+            ),
+          ],
+        ),
+      );
+      if (go == true && mounted) {
+        context.goNamed('recap');
+      }
+    });
   }
 
   void _listenForTradeOffers() {
@@ -993,6 +1023,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                       final detail = prospect == null
                           ? 'Upcoming pick'
                           : '${prospect.position}${(prospect.college == null || prospect.college!.isEmpty) ? '' : ' • ${prospect.college}'}';
+                      final via = _viaLabel(pick);
 
                       final key = selectedTeam == null &&
                               _lastPickFocusId == _pickKey(pick)
@@ -1017,7 +1048,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                           ),
                         ),
                         subtitle: Text(
-                          '${pick.pickOverall}. ${pick.teamAbbr}  •  R${pick.round}.${pick.pickInRound.toString().padLeft(2, '0')}  •  $detail',
+                          '${pick.pickOverall}. ${pick.teamAbbr}  •  R${pick.round}.${pick.pickInRound.toString().padLeft(2, '0')}$via  •  $detail',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(color: AppColors.textMuted),
@@ -1073,6 +1104,13 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
 
   String _pickKey(DraftPick pick) {
     return '${pick.year}-${pick.round}-${pick.pickOverall}-${pick.pickInRound}';
+  }
+
+  String _viaLabel(DraftPick pick) {
+    final original = pick.originalTeamAbbr.toUpperCase();
+    final current = pick.teamAbbr.toUpperCase();
+    if (original.isEmpty || original == current) return '';
+    return ' • via $original';
   }
 
   Widget _onClockFooter(DraftState state) {
