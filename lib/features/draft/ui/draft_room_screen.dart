@@ -658,7 +658,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   Widget _onClockFooter(DraftState state) {
     final controller = ref.read(draftControllerProvider.notifier);
 
-    final canTrade = state.isUserOnClock && !state.isComplete;
+    final canTrade = !state.isComplete && state.currentPick != null;
     final canRun = !state.isUserOnClock && !state.isComplete;
 
     return Row(
@@ -702,10 +702,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                 fromTeam: result.partnerTeam,
                 toTeam: pick.teamAbbr,
                 fromAssets: result.partnerAssets,
-                toAssets: [
-                  TradeAsset.pick(pick),
-                  ...result.userAssets,
-                ],
+                toAssets: result.userAssets,
               );
 
               final ok = controller.proposeTrade(offer);

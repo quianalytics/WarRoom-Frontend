@@ -45,6 +45,16 @@ class _TradeSheetState extends State<TradeSheet> {
     return picks;
   }
 
+  List<DraftPick> _ownedPicksIncludingCurrent(String teamAbbr) {
+    final picks = _futureOwnedPicksFor(teamAbbr);
+    final current = widget.state.currentPick;
+    if (current != null &&
+        current.teamAbbr.toUpperCase() == teamAbbr.toUpperCase()) {
+      return [current, ...picks];
+    }
+    return picks;
+  }
+
   List<FuturePick> _futureYearPicksFor(String teamAbbr) {
     final year = widget.state.year;
     final picks = <FuturePick>[];
@@ -62,7 +72,7 @@ class _TradeSheetState extends State<TradeSheet> {
     final partnerTeams = teams.where((t) => t != widget.currentTeam.toUpperCase()).toList();
 
     final partnerPicks = partner == null ? <DraftPick>[] : _futureOwnedPicksFor(partner!);
-    final userPicks = _futureOwnedPicksFor(widget.currentTeam);
+    final userPicks = _ownedPicksIncludingCurrent(widget.currentTeam);
 
     final partnerFuture = partner == null ? <FuturePick>[] : _futureYearPicksFor(partner!);
     final userFuture = _futureYearPicksFor(widget.currentTeam);
@@ -93,34 +103,52 @@ class _TradeSheetState extends State<TradeSheet> {
               const Text('Select a partner team to see their future picks.')
             else
               Expanded(
-                child: ListView(
+                child: Row(
                   children: [
-                    const Text('Partner assets', style: TextStyle(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 6),
-                    ..._buildPickSection(
-                      title: 'Current picks',
-                      picks: partnerPicks,
-                      selected: selectedPartner,
-                      ownerLabel: partner!,
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          Text(
+                            '${widget.currentTeam.toUpperCase()} assets',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 6),
+                          ..._buildPickSection(
+                            title: 'Current picks',
+                            picks: userPicks,
+                            selected: selectedUser,
+                            ownerLabel: widget.currentTeam,
+                          ),
+                          ..._buildFutureSection(
+                            title: 'Future picks',
+                            picks: userFuture,
+                            selected: selectedUser,
+                          ),
+                        ],
+                      ),
                     ),
-                    ..._buildFutureSection(
-                      title: 'Future picks',
-                      picks: partnerFuture,
-                      selected: selectedPartner,
-                    ),
-                    const SizedBox(height: 14),
-                    const Text('Your assets', style: TextStyle(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 6),
-                    ..._buildPickSection(
-                      title: 'Current picks',
-                      picks: userPicks,
-                      selected: selectedUser,
-                      ownerLabel: widget.currentTeam,
-                    ),
-                    ..._buildFutureSection(
-                      title: 'Future picks',
-                      picks: userFuture,
-                      selected: selectedUser,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          Text(
+                            '${partner!.toUpperCase()} assets',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 6),
+                          ..._buildPickSection(
+                            title: 'Current picks',
+                            picks: partnerPicks,
+                            selected: selectedPartner,
+                            ownerLabel: partner!,
+                          ),
+                          ..._buildFutureSection(
+                            title: 'Future picks',
+                            picks: partnerFuture,
+                            selected: selectedPartner,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -225,4 +253,5 @@ class _TradeSheetState extends State<TradeSheet> {
       const SizedBox(height: 10),
     ];
   }
+
 }
