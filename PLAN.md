@@ -13,6 +13,7 @@ and where changes should be made when adding features.
 - Data is fetched from a local API (`http://localhost:3000`) via Dio.
 - Draft progress is stored in `SharedPreferences`.
 - Trade settings and recap state are in-memory only (not persisted).
+- Draft recap supports sharing and saving a screenshot of the recap view.
 
 ## Project Layout (Primary Areas)
 - App shell: `lib/main.dart`, `lib/app_router.dart`, `lib/theme/app_theme.dart`.
@@ -155,7 +156,7 @@ Parsing notes:
   and trade tuning. Team labels are colored by team brand.
 - Draft recap: `lib/features/draft/ui/draft_recap_screen.dart` shows user picks
   with per-pick grades and an overall class grade, plus a trade history section
-  filtered by the selected team.
+  filtered by the selected team. The recap screen can share or save a screenshot.
 - Draft room: `lib/features/draft/ui/draft_room_screen.dart` composes:
   - Header with pick/clock
   - Big board list

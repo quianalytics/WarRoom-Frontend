@@ -52,6 +52,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   late double _tradeFrequency;
   late double _tradeStrictness;
   bool _showedDraftComplete = false;
+  bool _listenersBound = false;
 
   @override
   void initState() {
@@ -109,8 +110,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                   '${offer.fromTeam} offers',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: teamColors[offer.fromTeam.toUpperCase()] ??
-                        AppColors.text,
+                    color: _readableTeamColor(
+                      teamColors[offer.fromTeam.toUpperCase()] ??
+                          AppColors.text,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -120,8 +123,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                   'In exchange for ${offer.toTeam}',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: teamColors[offer.toTeam.toUpperCase()] ??
-                        AppColors.text,
+                    color: _readableTeamColor(
+                      teamColors[offer.toTeam.toUpperCase()] ??
+                          AppColors.text,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -252,9 +257,11 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                                     '${offer.fromTeam} offers',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w800,
-                                      color: teamColors[
-                                              offer.fromTeam.toUpperCase()] ??
-                                          AppColors.text,
+                                      color: _readableTeamColor(
+                                        teamColors[
+                                                offer.fromTeam.toUpperCase()] ??
+                                            AppColors.text,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 6),
@@ -265,9 +272,11 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                                     'In exchange for ${offer.toTeam}',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w700,
-                                      color: teamColors[
-                                              offer.toTeam.toUpperCase()] ??
-                                          AppColors.text,
+                                      color: _readableTeamColor(
+                                        teamColors[
+                                                offer.toTeam.toUpperCase()] ??
+                                            AppColors.text,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 6),
@@ -387,8 +396,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(draftControllerProvider);
     final controller = ref.read(draftControllerProvider.notifier);
-    _listenForTradeOffers();
-    _listenForCpuTradeLogs();
+    _bindListeners();
     _maybeShowDraftCompletePrompt(state);
 
     return Scaffold(
@@ -462,6 +470,13 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
             : _content(context, state),
       ),
     );
+  }
+
+  void _bindListeners() {
+    if (_listenersBound) return;
+    _listenersBound = true;
+    _listenForTradeOffers();
+    _listenForCpuTradeLogs();
   }
 
   void _maybeShowDraftCompletePrompt(DraftState state) {
@@ -999,7 +1014,9 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                       child: Text(
                         '$abbr ($c)',
                         style: TextStyle(
-                          color: teamColors[abbr] ?? AppColors.text,
+                          color: _readableTeamColor(
+                            teamColors[abbr] ?? AppColors.text,
+                          ),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -1051,9 +1068,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                               _lastPickFocusId == _pickKey(pick)
                           ? _lastPickTileKey
                           : ValueKey('pick-${_pickKey(pick)}');
-                      final teamColor =
-                          teamColors[pick.teamAbbr.toUpperCase()] ??
-                              AppColors.textMuted;
+                      final teamColor = _readableTeamColor(
+                        teamColors[pick.teamAbbr.toUpperCase()] ??
+                            AppColors.textMuted,
+                      );
                       return ListTile(
                         key: key,
                         dense: true,
@@ -1178,6 +1196,11 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     return Color(parsed);
   }
 
+  Color _readableTeamColor(Color color) {
+    if (color.computeLuminance() >= 0.45) return color;
+    return Color.lerp(color, Colors.white, 0.4) ?? color;
+  }
+
   Widget _onClockFooter(DraftState state) {
     final controller = ref.read(draftControllerProvider.notifier);
     final teamColors = _teamColorMap(state);
@@ -1205,8 +1228,9 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                       TextSpan(
                         text: state.onClockTeam,
                         style: TextStyle(
-                          color: teamColors[state.onClockTeam] ??
-                              AppColors.text,
+                          color: _readableTeamColor(
+                            teamColors[state.onClockTeam] ?? AppColors.text,
+                          ),
                           fontWeight: FontWeight.w800,
                         ),
                       ),

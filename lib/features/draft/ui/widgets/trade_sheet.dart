@@ -100,13 +100,15 @@ class _TradeSheetState extends State<TradeSheet> {
                     .map(
                       (t) => DropdownMenuItem(
                         value: t,
-                        child: Text(
-                          t,
-                          style: TextStyle(
-                            color: teamColors[t] ?? Colors.white,
-                            fontWeight: FontWeight.w700,
+                          child: Text(
+                            t,
+                            style: TextStyle(
+                              color: _readableTeamColor(
+                                teamColors[t] ?? Colors.white,
+                              ),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
                       ),
                     )
                     .toList(),
@@ -130,7 +132,9 @@ class _TradeSheetState extends State<TradeSheet> {
                       child: Text(
                         t,
                         style: TextStyle(
-                          color: teamColors[t] ?? Colors.white,
+                          color: _readableTeamColor(
+                            teamColors[t] ?? Colors.white,
+                          ),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -159,9 +163,10 @@ class _TradeSheetState extends State<TradeSheet> {
                             '${userTeam!.toUpperCase()} assets',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color:
-                                  teamColors[userTeam!.toUpperCase()] ??
-                                      Colors.white,
+                              color: _readableTeamColor(
+                                teamColors[userTeam!.toUpperCase()] ??
+                                    Colors.white,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -187,9 +192,10 @@ class _TradeSheetState extends State<TradeSheet> {
                             '${partner!.toUpperCase()} assets',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color:
-                                  teamColors[partner!.toUpperCase()] ??
-                                      Colors.white,
+                              color: _readableTeamColor(
+                                teamColors[partner!.toUpperCase()] ??
+                                    Colors.white,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -350,6 +356,11 @@ class _TradeSheetState extends State<TradeSheet> {
     final parsed = int.tryParse(value, radix: 16);
     if (parsed == null) return null;
     return Color(parsed);
+  }
+
+  Color _readableTeamColor(Color color) {
+    if (color.computeLuminance() >= 0.45) return color;
+    return Color.lerp(color, Colors.white, 0.4) ?? color;
   }
 
 }

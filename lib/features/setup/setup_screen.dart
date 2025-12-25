@@ -207,7 +207,9 @@ class _SetupScreenState extends State<SetupScreen> {
                         title: Text(
                           abbr,
                           style: TextStyle(
-                            color: teamColors[abbr] ?? AppColors.text,
+                            color: _readableTeamColor(
+                              teamColors[abbr] ?? AppColors.text,
+                            ),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -349,5 +351,10 @@ class _SetupScreenState extends State<SetupScreen> {
         return const Color(0xFF5A1414);
     }
     return null;
+  }
+
+  Color _readableTeamColor(Color color) {
+    if (color.computeLuminance() >= 0.45) return color;
+    return Color.lerp(color, Colors.white, 0.4) ?? color;
   }
 }

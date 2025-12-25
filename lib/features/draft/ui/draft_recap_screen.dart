@@ -1,6 +1,13 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
 import '../logic/draft_state.dart';
 import '../providers.dart';
 import '../../../theme/app_theme.dart';
@@ -15,6 +22,8 @@ class DraftRecapScreen extends ConsumerStatefulWidget {
 
 class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
   String? _teamFilter;
+  final GlobalKey _recapKey = GlobalKey();
+  bool _exporting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +49,16 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
             onPressed: () => context.go('/'),
             icon: const Icon(Icons.home),
           ),
+          IconButton(
+            tooltip: 'Share',
+            onPressed: _exporting ? null : () => _shareRecap(context),
+            icon: const Icon(Icons.share),
+          ),
+          IconButton(
+            tooltip: 'Save',
+            onPressed: _exporting ? null : () => _saveRecap(context),
+            icon: const Icon(Icons.download),
+          ),
         ],
       ),
       body: Container(
@@ -47,155 +66,252 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: picks.isEmpty
-                ? const Center(
-                    child: Text('No user picks found for this draft.'),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Panel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _summary(picks),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                const Text('Team:'),
-                                const SizedBox(width: 12),
-                                DropdownButton<String?>(
-                                  value: _teamFilter,
-                                  items: [
-                                    const DropdownMenuItem<String?>(
-                                      value: null,
-                                      child: Text('All User Teams'),
-                                    ),
-                                    ...userTeams.map(
-                                      (t) => DropdownMenuItem<String?>(
-                                        value: t,
-                                        child: Text(
-                                          t,
-                                          style: TextStyle(
-                                            color: teamColors[t] ??
-                                                AppColors.text,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                  onChanged: (v) {
-                                    setState(() => _teamFilter = v);
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (tradeEntries.isNotEmpty) ...[
+            child: RepaintBoundary(
+              key: _recapKey,
+              child: picks.isEmpty
+                  ? const Center(
+                      child: Text('No user picks found for this draft.'),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Panel(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Trades Made',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              ...tradeEntries.map(
-                                (t) => Text(
-                                  '• ${t.summary}',
-                                  style: TextStyle(
-                                    color: _tradeTextColor(t, teamColors),
+                              _summary(picks),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  const Text('Team:'),
+                                  const SizedBox(width: 12),
+                                  DropdownButton<String?>(
+                                    value: _teamFilter,
+                                    items: [
+                                      const DropdownMenuItem<String?>(
+                                        value: null,
+                                        child: Text('All User Teams'),
+                                      ),
+                                      ...userTeams.map(
+                                        (t) => DropdownMenuItem<String?>(
+                                          value: t,
+                                          child: Text(
+                                            t,
+                                            style: TextStyle(
+                                              color: _readableTeamColor(
+                                                teamColors[t] ??
+                                                    AppColors.text,
+                                              ),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                    onChanged: (v) {
+                                      setState(() => _teamFilter = v);
+                                    },
                                   ),
-                                ),
+                                ],
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 12),
-                      ],
-                      Expanded(
-                        child: ListView.separated(
-                          itemCount: picks.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (context, i) {
-                            final pr = picks[i];
-                            final grade = _gradeForPick(pr);
-                            return Panel(
-                              child: Row(
-                                children: [
-                                  _gradeChip(grade.letter),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          pr.prospect.name,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Pick ${pr.pick.pickOverall} • ${pr.teamAbbr} • ${pr.prospect.position}${_collegeLabel(pr)}',
-                                          style: const TextStyle(
-                                            color: AppColors.textMuted,
-                                          ),
-                                        ),
-                                      ],
+                        if (tradeEntries.isNotEmpty) ...[
+                          Panel(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Trades Made',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                ...tradeEntries.map(
+                                (t) => Text(
+                                  '• ${t.summary}',
+                                  style: TextStyle(
+                                    color: _readableTeamColor(
+                                      _tradeTextColor(t, teamColors),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: (teamColors[
-                                                  pr.teamAbbr.toUpperCase()] ??
-                                              AppColors.blue)
-                                          .withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(
-                                        color: teamColors[
-                                                pr.teamAbbr.toUpperCase()] ??
-                                            AppColors.blue,
+                                ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        Expanded(
+                          child: ListView.separated(
+                            itemCount: picks.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, i) {
+                              final pr = picks[i];
+                              final grade = _gradeForPick(pr);
+                              return Panel(
+                                child: Row(
+                                  children: [
+                                    _gradeChip(grade.letter),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            pr.prospect.name,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Pick ${pr.pick.pickOverall} • ${pr.teamAbbr} • ${pr.prospect.position}${_collegeLabel(pr)}',
+                                            style: const TextStyle(
+                                              color: AppColors.textMuted,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: (teamColors[
+                                                    pr.teamAbbr.toUpperCase()] ??
+                                                AppColors.blue)
+                                            .withOpacity(0.2),
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                        border: Border.all(
+                                          color: teamColors[
+                                                  pr.teamAbbr.toUpperCase()] ??
+                                              AppColors.blue,
+                                        ),
+                                      ),
                                     child: Text(
                                       pr.teamAbbr.toUpperCase(),
                                       style: TextStyle(
                                         fontWeight: FontWeight.w800,
-                                        color: teamColors[
-                                                pr.teamAbbr.toUpperCase()] ??
-                                            AppColors.text,
+                                        color: _readableTeamColor(
+                                          teamColors[
+                                                  pr.teamAbbr.toUpperCase()] ??
+                                              AppColors.text,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _shareRecap(BuildContext context) async {
+    if (kIsWeb ||
+        !(Platform.isAndroid || Platform.isIOS || Platform.isMacOS)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sharing is only supported on mobile and macOS.'),
+        ),
+      );
+      return;
+    }
+    try {
+      final bytes = await _captureRecap();
+      if (bytes == null) return;
+      final file = await _writeTempFile(bytes);
+      if (file == null || !mounted) return;
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'My WarRoom draft recap',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Share failed: $e')),
+      );
+    }
+  }
+
+  Future<void> _saveRecap(BuildContext context) async {
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gallery save is only supported on mobile.'),
+        ),
+      );
+      return;
+    }
+    try {
+      final bytes = await _captureRecap();
+      if (bytes == null) return;
+      final result = await ImageGallerySaver.saveImage(
+        bytes,
+        quality: 100,
+        name: 'warroom_recap_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      if (!mounted) return;
+      final saved = result['isSuccess'] == true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            saved ? 'Saved to Photos' : 'Failed to save screenshot',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Save failed: $e')),
+      );
+    }
+  }
+
+  Future<Uint8List?> _captureRecap() async {
+    if (_exporting) return null;
+    setState(() => _exporting = true);
+    try {
+      final boundary =
+          _recapKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      return data?.buffer.asUint8List();
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<File?> _writeTempFile(Uint8List bytes) async {
+    final dir = Directory.systemTemp;
+    final file = File(
+      '${dir.path}/warroom_recap_${DateTime.now().millisecondsSinceEpoch}.png',
+    );
+    await file.writeAsBytes(bytes);
+    return file;
   }
 
   Widget _summary(List<PickResult> picks) {
@@ -359,6 +475,11 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
     final parsed = int.tryParse(value, radix: 16);
     if (parsed == null) return null;
     return Color(parsed);
+  }
+
+  Color _readableTeamColor(Color color) {
+    if (color.computeLuminance() >= 0.45) return color;
+    return Color.lerp(color, Colors.white, 0.4) ?? color;
   }
 }
 
