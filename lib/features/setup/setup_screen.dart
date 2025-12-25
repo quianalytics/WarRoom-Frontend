@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/storage/local_store.dart';
+import '../draft/logic/draft_speed.dart';
 
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
@@ -12,6 +13,7 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   int year = 2026;
   bool canResume = false;
+  DraftSpeedPreset speedPreset = DraftSpeedPreset.fast;
 
   // Temporary static list. Next step: load from /teams.
   final allTeams = const [
@@ -93,6 +95,37 @@ class _SetupScreenState extends State<SetupScreen> {
               ],
             ),
             const SizedBox(height: 12),
+            Row(
+              children: [
+                const Text('CPU Speed:'),
+                const SizedBox(width: 12),
+                DropdownButton<DraftSpeedPreset>(
+                  value: speedPreset,
+                  items: const [
+                    DropdownMenuItem(
+                      value: DraftSpeedPreset.slow,
+                      child: Text('Slow'),
+                    ),
+                    DropdownMenuItem(
+                      value: DraftSpeedPreset.normal,
+                      child: Text('Normal'),
+                    ),
+                    DropdownMenuItem(
+                      value: DraftSpeedPreset.fast,
+                      child: Text('Fast'),
+                    ),
+                    DropdownMenuItem(
+                      value: DraftSpeedPreset.instant,
+                      child: Text('Instant'),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    setState(() => speedPreset = v ?? DraftSpeedPreset.fast);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             const Text('Teams you control (select 1+):'),
             const SizedBox(height: 8),
             Expanded(
@@ -135,7 +168,7 @@ class _SetupScreenState extends State<SetupScreen> {
                     : () {
                         final teams = selected.toList()..sort();
                         context.go(
-                          '/draft?year=$year&teams=${teams.join(',')}',
+                          '/draft?year=$year&teams=${teams.join(',')}&speed=${speedPreset.name}',
                         );
                       },
                 child: const Text('Start Mock Draft'),
@@ -146,7 +179,7 @@ class _SetupScreenState extends State<SetupScreen> {
               child: OutlinedButton(
                 onPressed: canResume
                     ? () => context.go(
-                        '/draft?year=$year&teams=${(selected.toList()..sort()).join(',')}&resume=1',
+                        '/draft?year=$year&teams=${(selected.toList()..sort()).join(',')}&resume=1&speed=${speedPreset.name}',
                       )
                     : null,
                 child: const Text('Resume Draft'),

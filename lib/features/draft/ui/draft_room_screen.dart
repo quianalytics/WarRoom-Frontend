@@ -17,11 +17,13 @@ class DraftRoomScreen extends ConsumerStatefulWidget {
     required this.year,
     required this.controlledTeams,
     required this.resume,
+    required this.speedPreset,
   });
 
   final int year;
   final List<String> controlledTeams;
   final bool resume;
+  final DraftSpeedPreset speedPreset;
 
   @override
   ConsumerState<DraftRoomScreen> createState() => _DraftRoomScreenState();
@@ -42,21 +44,22 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     super.initState();
 
     // Avoid Riverpod provider mutation during build/lifecycle.
-    Future.microtask(() {
+    Future.microtask(() async {
       if (!mounted || _bootstrapped) return;
       _bootstrapped = true;
 
       final controller = ref.read(draftControllerProvider.notifier);
 
       if (widget.resume) {
-        controller.resumeSavedDraft(widget.year);
+        await controller.resumeSavedDraft(widget.year);
+        controller.setSpeedPreset(widget.speedPreset);
       } else {
         controller.start(
           year: widget.year,
           userTeams: widget.controlledTeams
               .map((e) => e.toUpperCase())
               .toList(),
-          speedPreset: DraftSpeedPreset.fast,
+          speedPreset: widget.speedPreset,
         );
       }
     });

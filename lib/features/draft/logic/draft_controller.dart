@@ -27,8 +27,6 @@ class DraftController extends StateNotifier<DraftState> {
 
   bool _runToNextUserPick = false;
 
-  int _clockSeconds = 600;
-
   int _currentClockSeconds() =>
       state.isUserOnClock ? _speed.userClockSeconds : _speed.cpuClockSeconds;
 
@@ -134,7 +132,7 @@ class DraftController extends StateNotifier<DraftState> {
       availableProspects: updatedBoard,
       picksMade: picksMade,
       currentIndex: state.currentIndex + 1,
-      secondsRemaining: _clockSeconds,
+      secondsRemaining: _currentClockSeconds(),
       clockRunning: true,
     );
 
