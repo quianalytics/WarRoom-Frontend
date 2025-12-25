@@ -35,12 +35,12 @@ flutter_launcher_icons:
   remove_alpha_ios: true
 
 flutter_native_splash:
-  color: "#0B0F14"              # your near-black background
+  color: "#000000"              # fully black background
   image: assets/icons/warroom_logo.png
   android: true
   ios: true
   android_12:
-    color: "#0B0F14"
+    color: "#000000"
     image: assets/icons/warroom_logo.png
 
 flutter:
