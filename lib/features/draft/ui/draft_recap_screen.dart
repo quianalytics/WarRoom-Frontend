@@ -22,6 +22,8 @@ class DraftRecapScreen extends ConsumerStatefulWidget {
 
 class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
   String? _teamFilter;
+  bool _showAllTeams = false;
+  bool _sortByTeam = false;
   final GlobalKey _recapKey = GlobalKey();
   bool _exporting = false;
 
@@ -30,15 +32,30 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
     final state = ref.watch(draftControllerProvider);
     final userTeams =
         state.userTeams.map((t) => t.toUpperCase()).toList()..sort();
+    final allTeams =
+        state.teams.map((t) => t.abbreviation.toUpperCase()).toList()..sort();
+    final visibleTeams = _showAllTeams ? allTeams : userTeams;
     final filter = _teamFilter;
 
     final teamColors = _teamColorMap(state);
     final picks = state.picksMade
-        .where((p) => userTeams.contains(p.teamAbbr.toUpperCase()))
+        .where((p) => visibleTeams.contains(p.teamAbbr.toUpperCase()))
         .where((p) => filter == null || p.teamAbbr.toUpperCase() == filter)
         .toList()
-      ..sort((a, b) => a.pick.pickOverall.compareTo(b.pick.pickOverall));
-    final tradeEntries = _filteredTrades(state, userTeams, _teamFilter);
+      ..sort((a, b) {
+        if (_sortByTeam) {
+          final teamCmp = a.teamAbbr.compareTo(b.teamAbbr);
+          if (teamCmp != 0) return teamCmp;
+        }
+        return a.pick.pickOverall.compareTo(b.pick.pickOverall);
+      });
+    final tradeEntries = _filteredTrades(
+      state,
+      userTeams,
+      _teamFilter,
+      showAllTeams: _showAllTeams,
+      visibleTeams: visibleTeams,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -83,16 +100,42 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                               const SizedBox(height: 12),
                               Row(
                                 children: [
+                                  const Text('Scope:'),
+                                  const SizedBox(width: 12),
+                                  DropdownButton<bool>(
+                                    value: _showAllTeams,
+                                    items: [
+                                      const DropdownMenuItem(
+                                        value: false,
+                                        child: Text('My Teams'),
+                                      ),
+                                      const DropdownMenuItem(
+                                        value: true,
+                                        child: Text('All Teams'),
+                                      ),
+                                    ],
+                                    onChanged: (v) {
+                                      setState(() {
+                                        _showAllTeams = v ?? false;
+                                        _teamFilter = null;
+                                      });
+                                    },
+                                  ),
+                                  const SizedBox(width: 16),
                                   const Text('Team:'),
                                   const SizedBox(width: 12),
                                   DropdownButton<String?>(
                                     value: _teamFilter,
                                     items: [
-                                      const DropdownMenuItem<String?>(
+                                      DropdownMenuItem<String?>(
                                         value: null,
-                                        child: Text('All User Teams'),
+                                        child: Text(
+                                          _showAllTeams
+                                              ? 'All Teams'
+                                              : 'All My Teams',
+                                        ),
                                       ),
-                                      ...userTeams.map(
+                                      ...visibleTeams.map(
                                         (t) => DropdownMenuItem<String?>(
                                           value: t,
                                           child: Text(
@@ -110,6 +153,29 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                                     ],
                                     onChanged: (v) {
                                       setState(() => _teamFilter = v);
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  const Text('Sort:'),
+                                  const SizedBox(width: 12),
+                                  DropdownButton<bool>(
+                                    value: _sortByTeam,
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: false,
+                                        child: Text('Pick Order'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: true,
+                                        child: Text('Team A–Z'),
+                                      ),
+                                    ],
+                                    onChanged: (v) {
+                                      setState(() => _sortByTeam = v ?? false);
                                     },
                                   ),
                                 ],
@@ -408,8 +474,10 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
   List<TradeLogEntry> _filteredTrades(
     DraftState state,
     List<String> userTeams,
-    String? teamFilter,
-  ) {
+    String? teamFilter, {
+    required bool showAllTeams,
+    required List<String> visibleTeams,
+  }) {
     if (state.tradeLog.isEmpty) return const [];
     if (teamFilter != null) {
       return state.tradeLog
@@ -418,11 +486,13 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
               t.toTeam.toUpperCase() == teamFilter)
           .toList();
     }
-    final userSet = userTeams.map((t) => t.toUpperCase()).toSet();
+    final scope = showAllTeams
+        ? visibleTeams.map((t) => t.toUpperCase()).toSet()
+        : userTeams.map((t) => t.toUpperCase()).toSet();
     return state.tradeLog
         .where((t) =>
-            userSet.contains(t.fromTeam.toUpperCase()) ||
-            userSet.contains(t.toTeam.toUpperCase()))
+            scope.contains(t.fromTeam.toUpperCase()) ||
+            scope.contains(t.toTeam.toUpperCase()))
         .toList();
   }
 
