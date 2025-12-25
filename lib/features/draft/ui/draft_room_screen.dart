@@ -6,6 +6,7 @@ import '../logic/draft_speed.dart';
 import '../logic/draft_state.dart';
 import '../models/trade.dart';
 import '../models/prospect.dart';
+import '../models/draft_pick.dart';
 import 'widgets/trade_sheet.dart';
 import '../../../ui/icon_pill.dart';
 import '../../../ui/panel.dart';
@@ -45,6 +46,8 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   bool _tradeDialogOpen = false;
   String? _lastTradeOfferId;
   bool _resumeAfterTradeDialog = false;
+  final GlobalKey _lastPickTileKey = GlobalKey();
+  String? _lastPickFocusId;
   late double _tradeFrequency;
   late double _tradeStrictness;
 
@@ -893,29 +896,37 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         ? state.picksMade
         : state.picksMade.where((p) => p.teamAbbr == selectedTeam).toList();
 
-    final teamObj = selectedTeam == null
-        ? null
-        : state.teams.firstWhere(
-            (t) => t.abbreviation.toUpperCase() == selectedTeam,
-            orElse: () => state.teams.first,
-          );
-
-    final roster = selectedTeam == null
-        ? const <PickResult>[]
-        : state.picksMade.where((p) => p.teamAbbr == selectedTeam).toList();
+    final recapRows = selectedTeam == null
+        ? _buildRecapRowsAll(state)
+        : _buildRecapRows(state, selectedTeam);
 
     // Slightly reorder picks for filtered view: by pick overall.
     if (selectedTeam != null) {
-      picks.sort((a, b) => a.pick.pickOverall.compareTo(b.pick.pickOverall));
+      recapRows.sort((a, b) => a.pick.pickOverall.compareTo(b.pick.pickOverall));
     }
 
-    if (selectedTeam == null && picks.length > _lastPickCount) {
-      _lastPickCount = picks.length;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_pickLogScroll.hasClients) return;
-        _pickLogScroll.jumpTo(_pickLogScroll.position.maxScrollExtent);
-      });
-    } else if (selectedTeam != null) {
+    if (selectedTeam == null) {
+      if (picks.length > _lastPickCount) {
+        _lastPickCount = picks.length;
+        final lastMade = state.picksMade.isNotEmpty
+            ? state.picksMade.last.pick
+            : null;
+        final focusId = lastMade == null ? null : _pickKey(lastMade);
+        if (focusId != null && focusId != _lastPickFocusId) {
+          _lastPickFocusId = focusId;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final ctx = _lastPickTileKey.currentContext;
+            if (ctx == null) return;
+            Scrollable.ensureVisible(
+              ctx,
+              alignment: 1.0,
+              duration: const Duration(milliseconds: 200),
+            );
+          });
+        }
+      }
+    } else {
       _lastPickCount = picks.length;
     }
 
@@ -969,32 +980,44 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         const SizedBox(height: 6),
         if (!recapCollapsed)
           Expanded(
-            child: picks.isEmpty
+            child: recapRows.isEmpty
                 ? const Center(child: Text('No picks yet.'))
                 : ListView.separated(
                     controller: _pickLogScroll,
-                    itemCount: picks.length,
+                    itemCount: recapRows.length,
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (context, i) {
-                      final pr = picks[i];
+                      final row = recapRows[i];
+                      final pick = row.pick;
+                      final prospect = row.prospect;
+                      final detail = prospect == null
+                          ? 'Upcoming pick'
+                          : '${prospect.position}${(prospect.college == null || prospect.college!.isEmpty) ? '' : ' • ${prospect.college}'}';
+
+                      final key = selectedTeam == null &&
+                              _lastPickFocusId == _pickKey(pick)
+                          ? _lastPickTileKey
+                          : ValueKey('pick-${_pickKey(pick)}');
                       return ListTile(
+                        key: key,
                         dense: true,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 4,
                           vertical: 2,
                         ),
-                        // Put the player name first so it remains visible on narrow layouts.
                         title: Text(
-                          pr.prospect.name,
+                          prospect?.name ?? 'Pick ${pick.pickOverall}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w800,
-                            color: AppColors.text,
+                            color: prospect == null
+                                ? AppColors.textMuted
+                                : AppColors.text,
                           ),
                         ),
                         subtitle: Text(
-                          '${pr.pick.pickOverall}. ${pr.teamAbbr}  •  R${pr.pick.round}.${pr.pick.pickInRound.toString().padLeft(2, '0')}  •  ${pr.prospect.position}${(pr.prospect.college == null || pr.prospect.college!.isEmpty) ? '' : ' • ${pr.prospect.college}'}',
+                          '${pick.pickOverall}. ${pick.teamAbbr}  •  R${pick.round}.${pick.pickInRound.toString().padLeft(2, '0')}  •  $detail',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(color: AppColors.textMuted),
@@ -1005,6 +1028,51 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
           ),
       ],
     );
+  }
+
+  List<_RecapRow> _buildRecapRows(DraftState state, String selectedTeam) {
+    final made = state.picksMade
+        .where((p) => p.teamAbbr == selectedTeam)
+        .toList();
+    final madeKeys = made.map((p) => _pickKey(p.pick)).toSet();
+
+    final upcoming = state.order
+        .where((p) => p.teamAbbr == selectedTeam)
+        .where((p) => !madeKeys.contains(_pickKey(p)))
+        .toList();
+
+    return [
+      ...made.map(
+        (p) => _RecapRow(
+          pick: p.pick,
+          prospect: p.prospect,
+        ),
+      ),
+      ...upcoming.map(
+        (p) => _RecapRow(
+          pick: p,
+          prospect: null,
+        ),
+      ),
+    ];
+  }
+
+  List<_RecapRow> _buildRecapRowsAll(DraftState state) {
+    final madeByPick = <String, PickResult>{};
+    for (final pr in state.picksMade) {
+      madeByPick[_pickKey(pr.pick)] = pr;
+    }
+
+    final rows = <_RecapRow>[];
+    for (final pick in state.order) {
+      final pr = madeByPick[_pickKey(pick)];
+      rows.add(_RecapRow(pick: pick, prospect: pr?.prospect));
+    }
+    return rows;
+  }
+
+  String _pickKey(DraftPick pick) {
+    return '${pick.year}-${pick.round}-${pick.pickOverall}-${pick.pickInRound}';
   }
 
   Widget _onClockFooter(DraftState state) {
@@ -1075,4 +1143,14 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
       ],
     );
   }
+}
+
+class _RecapRow {
+  final DraftPick pick;
+  final Prospect? prospect;
+
+  const _RecapRow({
+    required this.pick,
+    required this.prospect,
+  });
 }
