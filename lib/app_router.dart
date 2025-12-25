@@ -27,11 +27,26 @@ final appRouter = GoRouter(
           (s) => s.name == speedRaw,
           orElse: () => DraftSpeedPreset.fast,
         );
+        final tradeFreqRaw = state.uri.queryParameters['tradeFreq'] ?? 'normal';
+        final tradeStrictRaw =
+            state.uri.queryParameters['tradeStrict'] ?? 'normal';
+        final tradeFreq = switch (tradeFreqRaw) {
+          'low' => 0.12,
+          'high' => 0.35,
+          _ => 0.22,
+        };
+        final tradeStrict = switch (tradeStrictRaw) {
+          'lenient' => -0.03,
+          'strict' => 0.04,
+          _ => 0.0,
+        };
         return DraftRoomScreen(
           year: year,
           controlledTeams: teams,
           resume: resume,
           speedPreset: speed,
+          tradeFrequency: tradeFreq,
+          tradeStrictness: tradeStrict,
         );
       },
     ),

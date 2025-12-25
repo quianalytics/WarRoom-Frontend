@@ -15,6 +15,8 @@ class _SetupScreenState extends State<SetupScreen> {
   int year = 2026;
   bool canResume = false;
   DraftSpeedPreset speedPreset = DraftSpeedPreset.fast;
+  String tradeFrequency = 'normal';
+  String tradeStrictness = 'normal';
 
   // Temporary static list. Next step: load from /teams.
   final allTeams = const [
@@ -150,6 +152,45 @@ class _SetupScreenState extends State<SetupScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text('Trade Frequency:'),
+                    const SizedBox(width: 12),
+                    DropdownButton<String>(
+                      value: tradeFrequency,
+                      items: const [
+                        DropdownMenuItem(value: 'low', child: Text('Low')),
+                        DropdownMenuItem(value: 'normal', child: Text('Normal')),
+                        DropdownMenuItem(value: 'high', child: Text('High')),
+                      ],
+                      onChanged: (v) {
+                        setState(() => tradeFrequency = v ?? 'normal');
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text('Trade Strictness:'),
+                    const SizedBox(width: 12),
+                    DropdownButton<String>(
+                      value: tradeStrictness,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'lenient',
+                          child: Text('Lenient'),
+                        ),
+                        DropdownMenuItem(value: 'normal', child: Text('Normal')),
+                        DropdownMenuItem(value: 'strict', child: Text('Strict')),
+                      ],
+                      onChanged: (v) {
+                        setState(() => tradeStrictness = v ?? 'normal');
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 const Text('Teams you control (select 1+):'),
                 const SizedBox(height: 8),
                 Expanded(
@@ -193,7 +234,7 @@ class _SetupScreenState extends State<SetupScreen> {
                             if (!await _guardYearAvailability()) return;
                             final teams = selected.toList()..sort();
                             context.go(
-                              '/draft?year=$year&teams=${teams.join(',')}&speed=${speedPreset.name}',
+                              '/draft?year=$year&teams=${teams.join(',')}&speed=${speedPreset.name}&tradeFreq=$tradeFrequency&tradeStrict=$tradeStrictness',
                             );
                           },
                     child: const Text('Start Mock Draft'),
@@ -206,7 +247,7 @@ class _SetupScreenState extends State<SetupScreen> {
                         ? () async {
                             if (!await _guardYearAvailability()) return;
                             context.go(
-                              '/draft?year=$year&teams=${(selected.toList()..sort()).join(',')}&resume=1&speed=${speedPreset.name}',
+                              '/draft?year=$year&teams=${(selected.toList()..sort()).join(',')}&resume=1&speed=${speedPreset.name}&tradeFreq=$tradeFrequency&tradeStrict=$tradeStrictness',
                             );
                           }
                         : null,

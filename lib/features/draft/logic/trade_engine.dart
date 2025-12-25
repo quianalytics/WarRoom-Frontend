@@ -34,10 +34,15 @@ class RichHillChart {
 class TradeEngine {
   final RichHillChart chart = RichHillChart();
 
-  bool accept(TradeOffer offer, {required TradeContext context}) {
+  bool accept(
+    TradeOffer offer, {
+    required TradeContext context,
+    double thresholdAdjustment = 0.0,
+  }) {
     final give = _totalValue(offer.toAssets, context);
     final get = _totalValue(offer.fromAssets, context);
-    final threshold = _acceptThreshold(offer, context);
+    final threshold =
+        _acceptThreshold(offer, context) + thresholdAdjustment;
 
     // toTeam accepts if it receives enough value relative to what it gives
     return get >= give * threshold;

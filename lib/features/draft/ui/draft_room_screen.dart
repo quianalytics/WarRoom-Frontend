@@ -18,12 +18,16 @@ class DraftRoomScreen extends ConsumerStatefulWidget {
     required this.controlledTeams,
     required this.resume,
     required this.speedPreset,
+    required this.tradeFrequency,
+    required this.tradeStrictness,
   });
 
   final int year;
   final List<String> controlledTeams;
   final bool resume;
   final DraftSpeedPreset speedPreset;
+  final double tradeFrequency;
+  final double tradeStrictness;
 
   @override
   ConsumerState<DraftRoomScreen> createState() => _DraftRoomScreenState();
@@ -38,10 +42,17 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   bool recapCollapsed = false;
   final ScrollController _pickLogScroll = ScrollController();
   int _lastPickCount = 0;
+  bool _tradeDialogOpen = false;
+  String? _lastTradeOfferId;
+  bool _resumeAfterTradeDialog = false;
+  late double _tradeFrequency;
+  late double _tradeStrictness;
 
   @override
   void initState() {
     super.initState();
+    _tradeFrequency = widget.tradeFrequency;
+    _tradeStrictness = widget.tradeStrictness;
 
     // Avoid Riverpod provider mutation during build/lifecycle.
     Future.microtask(() async {
@@ -49,6 +60,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
       _bootstrapped = true;
 
       final controller = ref.read(draftControllerProvider.notifier);
+      controller.setTradeSettings(
+        frequency: _tradeFrequency,
+        strictness: _tradeStrictness,
+      );
 
       if (widget.resume) {
         await controller.resumeSavedDraft(widget.year);
@@ -71,10 +86,286 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     super.dispose();
   }
 
+  Future<bool?> _showTradeOfferDialog(
+    BuildContext context,
+    TradeOffer offer,
+  ) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Trade Offer'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${offer.fromTeam} offers',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                ...offer.fromAssets.map((a) => Text('• ${_assetLabel(a)}')),
+                const SizedBox(height: 12),
+                Text(
+                  'In exchange for',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                ...offer.toAssets.map((a) => Text('• ${_assetLabel(a)}')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Decline'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Accept'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _assetLabel(TradeAsset asset) {
+    final pick = asset.pick;
+    if (pick != null) {
+      return 'Pick ${pick.pickOverall} (R${pick.round}.${pick.pickInRound}) • ${pick.teamAbbr}';
+    }
+    final future = asset.futurePick!;
+    return '${future.year} Round ${future.round} • ${future.teamAbbr}';
+  }
+
+  Widget _tradeInboxButton(DraftState state) {
+    final count = state.tradeInbox.length;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconPill(
+          icon: Icons.swap_horiz,
+          tooltip: 'Trade Inbox',
+          onPressed: count == 0
+              ? null
+              : () => _showTradeInboxSheet(context, state),
+        ),
+        if (count > 0)
+          Positioned(
+            right: 2,
+            top: -2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.blue,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: AppColors.borderStrong),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _showTradeInboxSheet(
+    BuildContext context,
+    DraftState state,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final current = ref.watch(draftControllerProvider);
+            final controller = ref.read(draftControllerProvider.notifier);
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Trade Inbox',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 12),
+                    if (current.tradeInbox.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Text('No pending trade offers.'),
+                      )
+                    else
+                      Flexible(
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: current.tradeInbox.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 16),
+                          itemBuilder: (context, i) {
+                            final offer = current.tradeInbox[i];
+                            return Panel(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${offer.fromTeam} offers',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  ...offer.fromAssets
+                                      .map((a) => Text('• ${_assetLabel(a)}')),
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    'In exchange for',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  ...offer.toAssets
+                                      .map((a) => Text('• ${_assetLabel(a)}')),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          onPressed: () {
+                                            controller.declineTradeOffer(offer);
+                                          },
+                                          child: const Text('Decline'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: FilledButton(
+                                          onPressed: () {
+                                            controller.acceptIncomingTrade(
+                                              offer,
+                                            );
+                                          },
+                                          child: const Text('Accept'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showTradeSettings(BuildContext context) async {
+    final controller = ref.read(draftControllerProvider.notifier);
+    final freqOptions = const [
+      ('Low', 0.12),
+      ('Normal', 0.22),
+      ('High', 0.35),
+    ];
+    final strictOptions = const [
+      ('Lenient', -0.03),
+      ('Normal', 0.0),
+      ('Strict', 0.04),
+    ];
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Trade Settings',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text('Frequency:'),
+                    const SizedBox(width: 12),
+                    DropdownButton<double>(
+                      value: _tradeFrequency,
+                      items: freqOptions
+                          .map(
+                            (o) => DropdownMenuItem<double>(
+                              value: o.$2,
+                              child: Text(o.$1),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() => _tradeFrequency = v);
+                        controller.setTradeSettings(frequency: v);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text('Strictness:'),
+                    const SizedBox(width: 12),
+                    DropdownButton<double>(
+                      value: _tradeStrictness,
+                      items: strictOptions
+                          .map(
+                            (o) => DropdownMenuItem<double>(
+                              value: o.$2,
+                              child: Text(o.$1),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() => _tradeStrictness = v);
+                        controller.setTradeSettings(strictness: v);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(draftControllerProvider);
     final controller = ref.read(draftControllerProvider.notifier);
+    _listenForTradeOffers();
+    _listenForCpuTradeLogs();
 
     return Scaffold(
       appBar: AppBar(
@@ -122,6 +413,14 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
             },
           ),
 
+          _tradeInboxButton(state),
+
+          IconPill(
+            icon: Icons.tune,
+            tooltip: 'Trade Settings',
+            onPressed: () => _showTradeSettings(context),
+          ),
+
           IconPill(
             icon: Icons.exit_to_app,
             tooltip: 'Exit',
@@ -145,6 +444,55 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
             : _content(context, state),
       ),
     );
+  }
+
+  void _listenForTradeOffers() {
+    ref.listen<DraftState>(draftControllerProvider, (prev, next) {
+      final offer = next.pendingTrade;
+      if (offer == null) return;
+      final id = offer.id ??
+          '${offer.fromTeam}_${offer.toTeam}_${offer.fromAssets.length}_${offer.toAssets.length}';
+      if (_tradeDialogOpen || _lastTradeOfferId == id) return;
+
+      _lastTradeOfferId = id;
+      _tradeDialogOpen = true;
+
+      final controller = ref.read(draftControllerProvider.notifier);
+      if (next.clockRunning) {
+        _resumeAfterTradeDialog = true;
+        controller.pauseClock();
+      } else {
+        _resumeAfterTradeDialog = false;
+      }
+
+      Future.microtask(() async {
+        if (!mounted) return;
+        final accepted = await _showTradeOfferDialog(context, offer);
+        if (!mounted) return;
+        if (accepted == true) {
+          final ok = controller.acceptIncomingTrade(offer);
+          if (!ok) controller.declinePendingTrade();
+        } else {
+          controller.declinePendingTrade();
+        }
+        if (_resumeAfterTradeDialog && mounted) {
+          controller.resumeClock();
+        }
+        _tradeDialogOpen = false;
+      });
+    });
+  }
+
+  void _listenForCpuTradeLogs() {
+    ref.listen<DraftState>(draftControllerProvider, (prev, next) {
+      if (prev == null) return;
+      if (next.tradeLogVersion == prev.tradeLogVersion) return;
+      final message = next.tradeLog.isNotEmpty ? next.tradeLog.last : null;
+      if (message == null || !mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    });
   }
 
   Future<void> _confirmExit(BuildContext context) async {

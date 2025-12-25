@@ -9,6 +9,7 @@ import 'cpu_strategy.dart';
 import 'trade_engine.dart';
 import '../models/trade.dart';
 import 'dart:async';
+import 'dart:math';
 import '../../../core/storage/local_store.dart';
 import 'draft_speed.dart';
 
@@ -21,6 +22,10 @@ class DraftController extends StateNotifier<DraftState> {
   final TradeEngine _trades = TradeEngine();
   Timer? _cpuTimer;
   int? _cpuScheduledIndex;
+  int? _tradeScheduledIndex;
+  final Random _rng = Random();
+  double _cpuTradeFrequency = 0.22;
+  double _cpuTradeStrictness = 0.0;
 
   DraftSpeedPreset _speedPreset = DraftSpeedPreset.normal;
   DraftSpeed _speed = DraftSpeed.forPreset(DraftSpeedPreset.normal);
@@ -38,6 +43,7 @@ class DraftController extends StateNotifier<DraftState> {
   }) async {
     _speedPreset = speedPreset;
     _speed = DraftSpeed.forPreset(speedPreset);
+    _tradeScheduledIndex = null;
 
     state = state.copyWith(
       loading: true,
@@ -60,10 +66,15 @@ class DraftController extends StateNotifier<DraftState> {
         currentIndex: 0,
         secondsRemaining: _currentClockSeconds(),
         clockRunning: true,
+        pendingTrade: null,
+        tradeInbox: const <TradeOffer>[],
+        tradeLog: const <String>[],
+        tradeLogVersion: 0,
       );
 
       await saveNow(); // initial save
       _startClockForCurrentPick();
+      _maybeOfferTrade();
       _maybeScheduleCpuPick();
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
@@ -138,6 +149,7 @@ class DraftController extends StateNotifier<DraftState> {
 
     if (!state.isComplete) {
       _startClockForCurrentPick();
+      _maybeOfferTrade();
       _maybeScheduleCpuPick();
       await saveNow();
     } else {
@@ -160,6 +172,7 @@ class DraftController extends StateNotifier<DraftState> {
       _cpuTimer?.cancel();
       _cpuScheduledIndex = null;
       _runToNextUserPick = false; // stop fast-forward once user is up
+      _maybeOfferTrade();
       return;
     }
 
@@ -206,8 +219,10 @@ class DraftController extends StateNotifier<DraftState> {
     _cpuScheduledIndex = null;
 
     state = DraftState.fromJson(saved);
+    _tradeScheduledIndex = null;
     // When resuming, restart clock for current pick
     _startClockForCurrentPick();
+    _maybeOfferTrade();
     _maybeScheduleCpuPick();
   }
 
@@ -236,6 +251,18 @@ class DraftController extends StateNotifier<DraftState> {
     _maybeScheduleCpuPick();
   }
 
+  void setTradeSettings({double? frequency, double? strictness}) {
+    if (frequency != null) {
+      _cpuTradeFrequency = frequency.clamp(0.0, 1.0);
+    }
+    if (strictness != null) {
+      _cpuTradeStrictness = strictness.clamp(-0.1, 0.2);
+    }
+  }
+
+  double get cpuTradeFrequency => _cpuTradeFrequency;
+  double get cpuTradeStrictness => _cpuTradeStrictness;
+
   /// Trade: swap ownership of picks (MVP uses pick swaps only)
   /// You’ll call this from a UI trade sheet.
   bool proposeTrade(TradeOffer offer) {
@@ -252,6 +279,32 @@ class DraftController extends StateNotifier<DraftState> {
 
     if (!_trades.accept(offer, context: context)) return false;
 
+    _applyTrade(offer);
+    state = state.copyWith(pendingTrade: null);
+    return true;
+  }
+
+  bool acceptIncomingTrade(TradeOffer offer) {
+    final ok = proposeTrade(offer);
+    if (ok) _removeFromInbox(offer);
+    return ok;
+  }
+
+  void declinePendingTrade() {
+    if (state.pendingTrade == null) return;
+    final offer = state.pendingTrade!;
+    state = state.copyWith(pendingTrade: null);
+    _removeFromInbox(offer);
+  }
+
+  void declineTradeOffer(TradeOffer offer) {
+    _removeFromInbox(offer);
+    if (state.pendingTrade?.id == offer.id) {
+      state = state.copyWith(pendingTrade: null);
+    }
+  }
+
+  void _applyTrade(TradeOffer offer) {
     // Update order ownership for any picks in the offer lists
     final toAssets = offer.toAssets
         .where((a) => a.pick != null)
@@ -280,7 +333,31 @@ class DraftController extends StateNotifier<DraftState> {
     }).toList();
 
     state = state.copyWith(order: updatedOrder);
-    return true;
+  }
+
+  void _queueTradeOffer(TradeOffer offer) {
+    final inbox = [...state.tradeInbox];
+    final id = offer.id ?? _tradeId();
+    final normalized = offer.id == null
+        ? TradeOffer(
+            id: id,
+            fromTeam: offer.fromTeam,
+            toTeam: offer.toTeam,
+            fromAssets: offer.fromAssets,
+            toAssets: offer.toAssets,
+          )
+        : offer;
+    final exists = inbox.any((o) => o.id == id);
+    if (!exists) {
+      inbox.add(normalized);
+      state = state.copyWith(tradeInbox: inbox);
+    }
+  }
+
+  void _removeFromInbox(TradeOffer offer) {
+    final inbox = [...state.tradeInbox]
+      ..removeWhere((o) => (o.id ?? '') == (offer.id ?? ''));
+    state = state.copyWith(tradeInbox: inbox);
   }
 
   DraftPick? _contextPickFor(TradeOffer offer) {
@@ -312,6 +389,169 @@ class DraftController extends StateNotifier<DraftState> {
       originalTeamAbbr: pick.originalTeamAbbr,
       isCompensatory: pick.isCompensatory,
     );
+  }
+
+  void _maybeOfferTrade() {
+    if (state.isComplete) return;
+    if (_tradeScheduledIndex == state.currentIndex) return;
+    _tradeScheduledIndex = state.currentIndex;
+    if (_rng.nextDouble() > _cpuTradeFrequency) return;
+    if (state.pendingTrade != null) return;
+
+    final offer = _generateTradeOffer();
+    if (offer == null) return;
+
+    if (_tradeInvolvesUser(offer)) {
+      _queueTradeOffer(offer);
+      state = state.copyWith(pendingTrade: offer);
+      return;
+    }
+
+    if (_cpuAccepts(offer) && _cpuAccepts(_swapOffer(offer))) {
+      _applyTrade(offer);
+      _logCpuTrade(offer);
+    }
+  }
+
+  TradeOffer? _generateTradeOffer() {
+    if (state.order.isEmpty) return null;
+    final teams =
+        state.teams.map((t) => t.abbreviation.toUpperCase()).toList();
+    if (teams.length < 2) return null;
+
+    final isUserOffer = state.userTeams.isNotEmpty && _rng.nextDouble() < 0.45;
+    final toTeam = isUserOffer
+        ? state.userTeams[_rng.nextInt(state.userTeams.length)]
+        : teams[_rng.nextInt(teams.length)];
+    final partnerPool =
+        teams.where((t) => t.toUpperCase() != toTeam.toUpperCase()).toList();
+    if (partnerPool.isEmpty) return null;
+    final fromTeam = partnerPool[_rng.nextInt(partnerPool.length)];
+
+    final targetPick = _nextPickForTeam(toTeam);
+    if (targetPick == null) return null;
+
+    final laterPicks =
+        _laterPicksForTeam(fromTeam, targetPick.pickOverall, 2);
+    if (laterPicks.isEmpty) return null;
+
+    final fromAssets = laterPicks.map((p) => TradeAsset.pick(p)).toList();
+    if (fromAssets.length == 1) {
+      fromAssets.add(
+        TradeAsset.future(
+          FuturePick(
+            teamAbbr: fromTeam,
+            year: state.year + 1,
+            round: 2,
+          ),
+        ),
+      );
+    }
+
+    final offer = TradeOffer(
+      id: _tradeId(),
+      fromTeam: fromTeam,
+      toTeam: toTeam,
+      fromAssets: fromAssets,
+      toAssets: [TradeAsset.pick(targetPick)],
+    );
+
+    final contextPick = _contextPickFor(offer) ?? state.currentPick;
+    if (contextPick == null) return null;
+    final context = TradeContext(
+      currentPick: contextPick,
+      fromTeam: _teamByAbbr(offer.fromTeam),
+      toTeam: _teamByAbbr(offer.toTeam),
+      availableProspects: state.availableProspects,
+      currentYear: state.year,
+    );
+
+    return _trades.accept(offer, context: context) ? offer : null;
+  }
+
+  DraftPick? _nextPickForTeam(String teamAbbr) {
+    for (var i = state.currentIndex; i < state.order.length; i++) {
+      final pick = state.order[i];
+      if (pick.teamAbbr.toUpperCase() == teamAbbr.toUpperCase()) {
+        return pick;
+      }
+    }
+    return null;
+  }
+
+  List<DraftPick> _laterPicksForTeam(
+    String teamAbbr,
+    int afterOverall,
+    int count,
+  ) {
+    final picks = <DraftPick>[];
+    for (var i = state.currentIndex; i < state.order.length; i++) {
+      final pick = state.order[i];
+      if (pick.pickOverall <= afterOverall) continue;
+      if (pick.teamAbbr.toUpperCase() != teamAbbr.toUpperCase()) continue;
+      picks.add(pick);
+      if (picks.length >= count) break;
+    }
+    return picks;
+  }
+
+  bool _tradeInvolvesUser(TradeOffer offer) {
+    return state.userTeams
+        .map((t) => t.toUpperCase())
+        .contains(offer.toTeam.toUpperCase());
+  }
+
+  bool _cpuAccepts(TradeOffer offer) {
+    final contextPick = _contextPickFor(offer) ?? state.currentPick;
+    if (contextPick == null) return false;
+    final context = TradeContext(
+      currentPick: contextPick,
+      fromTeam: _teamByAbbr(offer.fromTeam),
+      toTeam: _teamByAbbr(offer.toTeam),
+      availableProspects: state.availableProspects,
+      currentYear: state.year,
+    );
+    return _trades.accept(
+      offer,
+      context: context,
+      thresholdAdjustment: _cpuTradeStrictness,
+    );
+  }
+
+  TradeOffer _swapOffer(TradeOffer offer) {
+    return TradeOffer(
+      id: offer.id,
+      fromTeam: offer.toTeam,
+      toTeam: offer.fromTeam,
+      fromAssets: offer.toAssets,
+      toAssets: offer.fromAssets,
+    );
+  }
+
+  void _logCpuTrade(TradeOffer offer) {
+    final fromList = offer.fromAssets.map(_assetLabel).join(', ');
+    final toList = offer.toAssets.map(_assetLabel).join(', ');
+    final summary = '${offer.fromTeam} → ${offer.toTeam}: $fromList for $toList';
+    final log = [...state.tradeLog, summary];
+    state = state.copyWith(
+      tradeLog: log,
+      tradeLogVersion: state.tradeLogVersion + 1,
+    );
+  }
+
+  String _assetLabel(TradeAsset asset) {
+    final pick = asset.pick;
+    if (pick != null) {
+      return 'P${pick.pickOverall} (R${pick.round}.${pick.pickInRound}) ${pick.teamAbbr}';
+    }
+    final future = asset.futurePick!;
+    return '${future.year} R${future.round} ${future.teamAbbr}';
+  }
+
+  String _tradeId() {
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final salt = _rng.nextInt(1 << 32);
+    return '${stamp}_$salt';
   }
 
   @override

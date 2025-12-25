@@ -1,6 +1,12 @@
 import '../models/draft_pick.dart';
 import '../models/prospect.dart';
 import '../models/team.dart';
+import '../models/trade.dart';
+
+const Object _noTrade = Object();
+const Object _noTradeInbox = Object();
+const Object _noTradeLog = Object();
+const Object _noTradeLogVersion = Object();
 
 class PickResult {
   final DraftPick pick;
@@ -47,6 +53,10 @@ class DraftState {
 
   final int secondsRemaining;
   final bool clockRunning;
+  final TradeOffer? pendingTrade;
+  final List<TradeOffer> tradeInbox;
+  final List<String> tradeLog;
+  final int tradeLogVersion;
 
   const DraftState({
     required this.loading,
@@ -60,6 +70,10 @@ class DraftState {
     required this.currentIndex,
     required this.secondsRemaining,
     required this.clockRunning,
+    required this.pendingTrade,
+    required this.tradeInbox,
+    required this.tradeLog,
+    required this.tradeLogVersion,
   });
 
   factory DraftState.initial() => const DraftState(
@@ -74,6 +88,10 @@ class DraftState {
     currentIndex: 0,
     secondsRemaining: 600,
     clockRunning: false,
+    pendingTrade: null,
+    tradeInbox: const <TradeOffer>[],
+    tradeLog: const <String>[],
+    tradeLogVersion: 0,
   );
   
   Map<String, dynamic> toJson() => {
@@ -108,6 +126,10 @@ class DraftState {
     currentIndex: json['currentIndex'] as int,
     secondsRemaining: json['secondsRemaining'] as int,
     clockRunning: json['clockRunning'] as bool,
+    pendingTrade: null,
+    tradeInbox: const <TradeOffer>[],
+    tradeLog: const <String>[],
+    tradeLogVersion: 0,
   );
 
   DraftPick? get currentPick =>
@@ -130,6 +152,10 @@ class DraftState {
     int? currentIndex,
     int? secondsRemaining,
     bool? clockRunning,
+    Object? pendingTrade = _noTrade,
+    Object? tradeInbox = _noTradeInbox,
+    Object? tradeLog = _noTradeLog,
+    Object? tradeLogVersion = _noTradeLogVersion,
   }) {
     return DraftState(
       loading: loading ?? this.loading,
@@ -143,6 +169,18 @@ class DraftState {
       currentIndex: currentIndex ?? this.currentIndex,
       secondsRemaining: secondsRemaining ?? this.secondsRemaining,
       clockRunning: clockRunning ?? this.clockRunning,
+      pendingTrade: identical(pendingTrade, _noTrade)
+          ? this.pendingTrade
+          : pendingTrade as TradeOffer?,
+      tradeInbox: identical(tradeInbox, _noTradeInbox)
+          ? this.tradeInbox
+          : tradeInbox as List<TradeOffer>,
+      tradeLog: identical(tradeLog, _noTradeLog)
+          ? this.tradeLog
+          : tradeLog as List<String>,
+      tradeLogVersion: identical(tradeLogVersion, _noTradeLogVersion)
+          ? this.tradeLogVersion
+          : tradeLogVersion as int,
     );
   }
 }

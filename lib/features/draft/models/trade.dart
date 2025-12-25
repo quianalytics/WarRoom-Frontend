@@ -28,12 +28,14 @@ class TradeAsset {
 }
 
 class TradeOffer {
+  final String? id;
   final String fromTeam; // acquiring team
   final String toTeam; // current pick owner
   final List<TradeAsset> fromAssets; // assets offered by fromTeam
   final List<TradeAsset> toAssets; // assets going to fromTeam
 
   TradeOffer({
+    this.id,
     required this.fromTeam,
     required this.toTeam,
     required this.fromAssets,
