@@ -23,7 +23,7 @@ class HomeScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'WarRoom Draft',
+                        'Welcome to WarRoom.',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
@@ -31,7 +31,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Build your board, run trades, and control the clock.',
+                        'Build your board dominate the draft.',
                         style: TextStyle(color: AppColors.textMuted),
                       ),
                       const SizedBox(height: 16),
