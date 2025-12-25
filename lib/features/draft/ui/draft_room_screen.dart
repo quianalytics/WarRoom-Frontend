@@ -107,7 +107,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
               child: IconPill(
                 icon: Icons.speed,
                 tooltip: 'Speed',
-                onPressed: () {}, // handled by PopupMenuButton
+                onPressed: null, // handled by PopupMenuButton
               ),
             ),
           ),

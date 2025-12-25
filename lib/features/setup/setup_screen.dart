@@ -59,6 +59,26 @@ class _SetupScreenState extends State<SetupScreen> {
     setState(() => canResume = has);
   }
 
+  Future<bool> _guardYearAvailability() async {
+    if (year != 2027) return true;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('2027 Draft Coming Soon'),
+        content: const Text(
+          'The 2027 draft mode is not available yet. Check back soon.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -165,7 +185,8 @@ class _SetupScreenState extends State<SetupScreen> {
               child: FilledButton(
                 onPressed: selected.isEmpty
                     ? null // <- DISABLED when no teams selected
-                    : () {
+                    : () async {
+                        if (!await _guardYearAvailability()) return;
                         final teams = selected.toList()..sort();
                         context.go(
                           '/draft?year=$year&teams=${teams.join(',')}&speed=${speedPreset.name}',
@@ -178,9 +199,12 @@ class _SetupScreenState extends State<SetupScreen> {
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: canResume
-                    ? () => context.go(
-                        '/draft?year=$year&teams=${(selected.toList()..sort()).join(',')}&resume=1&speed=${speedPreset.name}',
-                      )
+                    ? () async {
+                        if (!await _guardYearAvailability()) return;
+                        context.go(
+                          '/draft?year=$year&teams=${(selected.toList()..sort()).join(',')}&resume=1&speed=${speedPreset.name}',
+                        );
+                      }
                     : null,
                 child: const Text('Resume Draft'),
               ),

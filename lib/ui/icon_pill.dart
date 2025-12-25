@@ -5,12 +5,12 @@ class IconPill extends StatelessWidget {
   const IconPill({
     super.key,
     required this.icon,
-    required this.onPressed,
+    this.onPressed,
     this.tooltip,
   });
 
   final IconData icon;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final String? tooltip;
 
   @override
