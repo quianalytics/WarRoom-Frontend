@@ -450,6 +450,13 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     // Dropdown options from ALL teams (so it exists even before picks happen)
     final allTeams =
         state.teams.map((t) => t.abbreviation.toUpperCase()).toList()..sort();
+    final userTeams =
+        widget.controlledTeams.map((t) => t.toUpperCase()).toList();
+    final userSet = userTeams.toSet();
+    final orderedTeams = [
+      ...userTeams,
+      ...allTeams.where((t) => !userSet.contains(t)),
+    ];
 
     final counts = <String, int>{};
     for (final t in allTeams) {
@@ -457,6 +464,14 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     }
     for (final pr in state.picksMade) {
       counts[pr.teamAbbr] = (counts[pr.teamAbbr] ?? 0) + 1;
+    }
+
+    // Default to the first user-controlled team if no filter is set.
+    if (pickLogTeamFilter == null && userTeams.isNotEmpty) {
+      Future.microtask(() {
+        if (!mounted) return;
+        setState(() => pickLogTeamFilter = userTeams.first);
+      });
     }
 
     // Reset filter if team disappears (edge cases)
@@ -499,7 +514,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                     value: null,
                     child: Text('All Teams'),
                   ),
-                  ...allTeams.map((abbr) {
+                  ...orderedTeams.map((abbr) {
                     final c = counts[abbr] ?? 0;
                     return DropdownMenuItem<String?>(
                       value: abbr,
@@ -522,14 +537,6 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         ),
 
         const SizedBox(height: 8),
-        if (selectedTeam != null && teamObj != null) ...[
-          _rosterPanel(
-            teamObj.abbreviation.toUpperCase(),
-            teamObj.needs ?? const [],
-            roster,
-          ),
-          const SizedBox(height: 10),
-        ],
         const Divider(height: 1),
         const SizedBox(height: 6),
         const Divider(height: 1),
@@ -570,88 +577,6 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                   ),
           ),
       ],
-    );
-  }
-
-  Widget _rosterPanel(
-    String teamAbbr,
-    List<String> needs,
-    List<PickResult> roster,
-  ) {
-    // Light “roster capsule” preview; keeps the pick log clean.
-    final top = roster.take(7).toList();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface2,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                '$teamAbbr Draft',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.blue.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.blue.withOpacity(0.35)),
-                ),
-                child: Text(
-                  '${roster.length} picks',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.text,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (needs.isNotEmpty)
-            Text(
-              'Needs: ${needs.join(', ')}',
-              style: const TextStyle(color: AppColors.textMuted),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          if (needs.isNotEmpty) const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: top.map((pr) {
-              return Chip(
-                label: Text(
-                  '${pr.prospect.position} • ${pr.prospect.name}',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              );
-            }).toList(),
-          ),
-          if (roster.length > top.length) ...[
-            const SizedBox(height: 8),
-            Text(
-              '+${roster.length - top.length} more',
-              style: const TextStyle(color: AppColors.textMuted),
-            ),
-          ],
-        ],
-      ),
     );
   }
 
