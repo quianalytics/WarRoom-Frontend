@@ -574,28 +574,33 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     return Column(
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            DropdownButtonHideUnderline(
-              child: DropdownButton<String?>(
-                value: pickLogTeamFilter,
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('All Teams'),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String?>(
+                    isExpanded: true,
+                    value: pickLogTeamFilter,
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All Teams'),
+                      ),
+                      ...orderedTeams.map((abbr) {
+                        final c = counts[abbr] ?? 0;
+                        return DropdownMenuItem<String?>(
+                          value: abbr,
+                          child: Text('$abbr ($c)'),
+                        );
+                      }),
+                    ],
+                    onChanged: (v) => setState(() {
+                      pickLogTeamFilter = v;
+                      _pickLogInitialized = true;
+                    }),
                   ),
-                  ...orderedTeams.map((abbr) {
-                    final c = counts[abbr] ?? 0;
-                    return DropdownMenuItem<String?>(
-                      value: abbr,
-                      child: Text('$abbr ($c)'),
-                    );
-                  }),
-                ],
-                onChanged: (v) => setState(() {
-                  pickLogTeamFilter = v;
-                  _pickLogInitialized = true;
-                }),
+                ),
               ),
             ),
             const SizedBox(width: 6),

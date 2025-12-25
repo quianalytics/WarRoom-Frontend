@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_router.dart';
 import './theme/app_theme.dart';
 
@@ -14,7 +13,6 @@ class WarRoomDraftApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final base = ThemeData.dark(useMaterial3: true);
-    final baseText = GoogleFonts.spaceGroteskTextTheme(base.textTheme);
 
     final theme = base.copyWith(
       scaffoldBackgroundColor: AppColors.bg,
@@ -26,31 +24,31 @@ class WarRoomDraftApp extends StatelessWidget {
       ),
 
       // Typography: slightly tighter + more “product” feel
-      textTheme: baseText.copyWith(
-        titleLarge: baseText.titleLarge?.copyWith(
+      textTheme: base.textTheme.copyWith(
+        titleLarge: base.textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w700,
           letterSpacing: -0.2,
         ),
-        titleMedium: baseText.titleMedium?.copyWith(
+        titleMedium: base.textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
           letterSpacing: -0.1,
         ),
-        bodyMedium: baseText.bodyMedium?.copyWith(height: 1.25),
+        bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.25),
       ),
 
       // AppBar: flatter, cleaner, not “stock Android”
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.bg,
         elevation: 0,
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.spaceGrotesk(
+        titleTextStyle: TextStyle(
           color: AppColors.text,
           fontSize: 18,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.2,
         ),
-        iconTheme: const IconThemeData(color: AppColors.text),
+        iconTheme: IconThemeData(color: AppColors.text),
       ),
 
       // Buttons: pill-ish, clean, no heavy shadows
