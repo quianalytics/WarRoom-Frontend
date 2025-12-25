@@ -52,6 +52,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   late double _tradeFrequency;
   late double _tradeStrictness;
   bool _showedDraftComplete = false;
+  int _lastTradeLogVersion = 0;
   bool _listenersBound = false;
 
   @override
@@ -166,9 +167,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         IconPill(
           icon: Icons.swap_horiz,
           tooltip: 'Trade Inbox',
-          onPressed: count == 0
-              ? null
-              : () => _showTradeInboxSheet(context, state),
+          onPressed: () => _showTradeInboxSheet(context, state),
         ),
         if (count > 0)
           Positioned(
@@ -398,6 +397,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     final controller = ref.read(draftControllerProvider.notifier);
     _bindListeners();
     _maybeShowDraftCompletePrompt(state);
+    _maybeShowTradeSnack(state);
 
     return Scaffold(
       appBar: AppBar(
@@ -476,7 +476,6 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     if (_listenersBound) return;
     _listenersBound = true;
     _listenForTradeOffers();
-    _listenForCpuTradeLogs();
   }
 
   void _maybeShowDraftCompletePrompt(DraftState state) {
@@ -526,16 +525,12 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         _resumeAfterTradeDialog = false;
       }
 
+      controller.clearPendingTrade();
+
       Future.microtask(() async {
         if (!mounted) return;
-        final accepted = await _showTradeOfferDialog(context, offer);
+        await _showTradeInboxSheet(context, next);
         if (!mounted) return;
-        if (accepted == true) {
-          final ok = controller.acceptIncomingTrade(offer);
-          if (!ok) controller.declinePendingTrade();
-        } else {
-          controller.declinePendingTrade();
-        }
         if (_resumeAfterTradeDialog && mounted) {
           controller.resumeClock();
         }
@@ -544,13 +539,15 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     });
   }
 
-  void _listenForCpuTradeLogs() {
-    ref.listen<DraftState>(draftControllerProvider, (prev, next) {
-      if (prev == null) return;
-      if (next.tradeLogVersion == prev.tradeLogVersion) return;
-      final message =
-          next.tradeLog.isNotEmpty ? next.tradeLog.last.summary : null;
-      if (message == null || !mounted) return;
+  void _maybeShowTradeSnack(DraftState state) {
+    if (state.tradeLogVersion <= _lastTradeLogVersion) return;
+    _lastTradeLogVersion = state.tradeLogVersion;
+    final message = state.tradeLog.isNotEmpty
+        ? 'TRADE ALERT: ${state.tradeLog.last.summary}'
+        : null;
+    if (message == null || !mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );

@@ -347,15 +347,15 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
       return const _Grade('B', 85);
     }
     final delta = pr.pick.pickOverall - rank;
-    if (delta >= 9) return const _Grade('A+', 98);
-    if (delta >= 5) return const _Grade('A', 94);
-    if (delta >= 2) return const _Grade('A-', 91);
-    if (delta >= -1) return const _Grade('B+', 88);
-    if (delta >= -4) return const _Grade('B', 84);
+    if (delta >= 12) return const _Grade('A+', 98);
+    if (delta >= 7) return const _Grade('A', 94);
+    if (delta >= 3) return const _Grade('A-', 91);
+    if (delta >= 0) return const _Grade('B+', 88);
+    if (delta >= -3) return const _Grade('B', 84);
     if (delta >= -7) return const _Grade('B-', 81);
-    if (delta >= -11) return const _Grade('C+', 78);
-    if (delta >= -16) return const _Grade('C', 74);
-    if (delta >= -24) return const _Grade('D', 68);
+    if (delta >= -12) return const _Grade('C+', 78);
+    if (delta >= -18) return const _Grade('C', 74);
+    if (delta >= -27) return const _Grade('D', 68);
     return const _Grade('F', 60);
   }
 

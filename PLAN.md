@@ -14,6 +14,7 @@ and where changes should be made when adding features.
 - Draft progress is stored in `SharedPreferences`.
 - Trade settings and recap state are in-memory only (not persisted).
 - Draft recap supports sharing and saving a screenshot of the recap view.
+- Recap sharing uses platform plugins; unsupported platforms show a warning.
 
 ## Project Layout (Primary Areas)
 - App shell: `lib/main.dart`, `lib/app_router.dart`, `lib/theme/app_theme.dart`.
@@ -59,6 +60,7 @@ and where changes should be made when adding features.
 - Draft persistence (save/clear).
 - Automated trade offers and CPU-to-CPU trades.
 - Trade inbox and logging for recap display.
+- Trade logging includes full asset details for recap and snackbars.
 
 ## Clock and Timing
 - `DraftClock` (`lib/features/draft/logic/draft_clock.dart`) is a simple timer that
@@ -157,6 +159,8 @@ Parsing notes:
 - Draft recap: `lib/features/draft/ui/draft_recap_screen.dart` shows user picks
   with per-pick grades and an overall class grade, plus a trade history section
   filtered by the selected team. The recap screen can share or save a screenshot.
+- Recap sharing saves to the system photo gallery on mobile and uses a temp file
+  for sharing on supported platforms.
 - Draft room: `lib/features/draft/ui/draft_room_screen.dart` composes:
   - Header with pick/clock
   - Big board list
@@ -170,6 +174,7 @@ Parsing notes:
   scrolls to the newest pick when in `All Teams` mode.
 - Team colors are used in multiple UI surfaces (draft recap, pick log filters,
   trade dialogs, trade inbox, and trade sheets).
+- Team colors are lightened when needed to keep text readable on dark surfaces.
 - Shared UI primitives: `lib/ui/panel.dart`, `lib/ui/icon_pill.dart`.
 - Theme tokens: `lib/theme/app_theme.dart` (colors, radii, spacing).
 
@@ -193,6 +198,7 @@ Parsing notes:
   teams exist, the user selects which team to trade for.
 - 2027 draft selection shows a "coming soon" dialog and blocks navigation.
 - Team color palette in setup is locally defined; API colors may differ.
+- Share/save requires full app restart after adding plugins to register channels.
 
 ## Testing and Validation (Current State)
 - No automated tests referenced yet.

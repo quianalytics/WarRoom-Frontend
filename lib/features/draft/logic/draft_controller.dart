@@ -280,13 +280,21 @@ class DraftController extends StateNotifier<DraftState> {
     if (!_trades.accept(offer, context: context)) return false;
 
     _applyTrade(offer, log: true);
+    if (!state.isComplete) {
+      state = state.copyWith(secondsRemaining: _currentClockSeconds());
+      _startClockForCurrentPick();
+      _maybeScheduleCpuPick();
+    }
     state = state.copyWith(pendingTrade: null);
     return true;
   }
 
   bool acceptIncomingTrade(TradeOffer offer) {
     final ok = proposeTrade(offer);
-    if (ok) _removeFromInbox(offer);
+    if (ok) {
+      _removeFromInbox(offer);
+      _advancePendingTrade();
+    }
     return ok;
   }
 
@@ -295,12 +303,19 @@ class DraftController extends StateNotifier<DraftState> {
     final offer = state.pendingTrade!;
     state = state.copyWith(pendingTrade: null);
     _removeFromInbox(offer);
+    _advancePendingTrade();
+  }
+
+  void clearPendingTrade() {
+    if (state.pendingTrade == null) return;
+    state = state.copyWith(pendingTrade: null);
   }
 
   void declineTradeOffer(TradeOffer offer) {
     _removeFromInbox(offer);
     if (state.pendingTrade?.id == offer.id) {
       state = state.copyWith(pendingTrade: null);
+      _advancePendingTrade();
     }
   }
 
@@ -352,6 +367,9 @@ class DraftController extends StateNotifier<DraftState> {
     if (!exists) {
       inbox.add(normalized);
       state = state.copyWith(tradeInbox: inbox);
+      if (state.pendingTrade == null) {
+        state = state.copyWith(pendingTrade: normalized);
+      }
     }
   }
 
@@ -359,6 +377,12 @@ class DraftController extends StateNotifier<DraftState> {
     final inbox = [...state.tradeInbox]
       ..removeWhere((o) => (o.id ?? '') == (offer.id ?? ''));
     state = state.copyWith(tradeInbox: inbox);
+  }
+
+  void _advancePendingTrade() {
+    if (state.pendingTrade != null) return;
+    if (state.tradeInbox.isEmpty) return;
+    state = state.copyWith(pendingTrade: state.tradeInbox.first);
   }
 
   DraftPick? _contextPickFor(TradeOffer offer) {
@@ -397,19 +421,20 @@ class DraftController extends StateNotifier<DraftState> {
     if (_tradeScheduledIndex == state.currentIndex) return;
     _tradeScheduledIndex = state.currentIndex;
     if (_rng.nextDouble() > _cpuTradeFrequency) return;
-    if (state.pendingTrade != null) return;
 
-    final offer = _generateTradeOffer();
-    if (offer == null) return;
+    final offersToTry = 1 + _rng.nextInt(3); // 1..3 offers per pick
+    for (var i = 0; i < offersToTry; i++) {
+      final offer = _generateTradeOffer();
+      if (offer == null) continue;
 
-    if (_tradeInvolvesUser(offer)) {
-      _queueTradeOffer(offer);
-      state = state.copyWith(pendingTrade: offer);
-      return;
-    }
+      if (_tradeInvolvesUser(offer)) {
+        _queueTradeOffer(offer);
+        continue;
+      }
 
-    if (_cpuAccepts(offer) && _cpuAccepts(_swapOffer(offer))) {
-      _applyTrade(offer, log: true);
+      if (_cpuAccepts(offer) && _cpuAccepts(_swapOffer(offer))) {
+        _applyTrade(offer, log: true);
+      }
     }
   }
 
