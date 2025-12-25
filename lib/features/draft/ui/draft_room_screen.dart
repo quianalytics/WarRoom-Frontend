@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../providers.dart';
 import '../logic/draft_speed.dart';
 import '../logic/draft_state.dart';
-import '../logic/trade_engine.dart';
+import '../models/trade.dart';
 import '../models/prospect.dart';
 import 'widgets/trade_sheet.dart';
 import '../../../ui/icon_pill.dart';
@@ -701,8 +701,11 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
               final offer = TradeOffer(
                 fromTeam: result.partnerTeam,
                 toTeam: pick.teamAbbr,
-                fromAssets: result.partnerPicksSelected,
-                toAssets: [pick],
+                fromAssets: result.partnerAssets,
+                toAssets: [
+                  TradeAsset.pick(pick),
+                  ...result.userAssets,
+                ],
               );
 
               final ok = controller.proposeTrade(offer);

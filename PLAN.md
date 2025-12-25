@@ -60,8 +60,9 @@ and where changes should be made when adding features.
 ## CPU Drafting and Trades
 - `CpuDraftStrategy` (`lib/features/draft/logic/cpu_strategy.dart`) uses rank and
   team needs to pick from a top window of prospects.
-- `TradeEngine` (`lib/features/draft/logic/trade_engine.dart`) is a simplified
-  pick-value model; it only supports pick swaps for now.
+- `TradeEngine` (`lib/features/draft/logic/trade_engine.dart`) uses a Rich Hill
+  value curve approximation, plus context-aware thresholds based on pick slot,
+  team needs, and board quality. It supports multi-asset trades and future picks.
 
 ## Data Access
 - `DraftRepository` (`lib/features/draft/data/draft_repository.dart`) wraps `Dio`:
@@ -84,6 +85,8 @@ main.dart
            -> DraftClock
            -> CpuDraftStrategy
            -> TradeEngine
+              -> TradeContext
+              -> RichHillChart
            -> DraftRepository
               -> ApiClient (Dio) -> HTTP API
            -> LocalStore (SharedPreferences)
@@ -122,6 +125,8 @@ Parsing notes:
 
 ## Domain Model Notes
 - Models: `DraftPick`, `Prospect`, `Team`, `Trade`, `DraftState`.
+- `Trade` models include `TradeAsset` and `FuturePick` to represent multi-pick
+  and future-year offers.
 - `Prospect` has defensive parsing for `_id` and numeric fields to tolerate
   inconsistent backend typing.
 
@@ -134,6 +139,8 @@ Parsing notes:
   - Recap/pick log
   - On-clock footer
 - Widgets in `lib/features/draft/ui/widgets/` are feature-specific surfaces.
+- `TradeSheet` now supports multi-pick packages from both sides and future-year
+  picks (next 2 drafts).
 - Shared UI primitives: `lib/ui/panel.dart`, `lib/ui/icon_pill.dart`.
 - Theme tokens: `lib/theme/app_theme.dart` (colors, radii, spacing).
 
@@ -151,7 +158,8 @@ Parsing notes:
 ## Known Assumptions and TODOs
 - API base URL is fixed to localhost and not environment-driven.
 - Setup uses a static team list; could be replaced by `/teams` API.
-- Trade engine is a simplified value chart and assumes pick swaps only.
+- Trade engine uses a Rich Hill-style curve approximation, not a hard-coded table.
+- Future picks are modeled as generic round slots with no protections.
 
 ## Testing and Validation (Current State)
 - No automated tests referenced yet.

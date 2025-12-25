@@ -7,6 +7,7 @@ import 'draft_clock.dart';
 import 'draft_state.dart';
 import 'cpu_strategy.dart';
 import 'trade_engine.dart';
+import '../models/trade.dart';
 import 'dart:async';
 import '../../../core/storage/local_store.dart';
 import 'draft_speed.dart';
@@ -240,39 +241,41 @@ class DraftController extends StateNotifier<DraftState> {
   /// Trade: swap ownership of picks (MVP uses pick swaps only)
   /// You’ll call this from a UI trade sheet.
   bool proposeTrade(TradeOffer offer) {
-    if (!_trades.accept(offer)) return false;
+    final pick = state.currentPick;
+    if (pick == null) return false;
+
+    final context = TradeContext(
+      currentPick: pick,
+      fromTeam: _teamByAbbr(offer.fromTeam),
+      toTeam: _teamByAbbr(offer.toTeam),
+      availableProspects: state.availableProspects,
+      currentYear: state.year,
+    );
+
+    if (!_trades.accept(offer, context: context)) return false;
 
     // Update order ownership for any picks in the offer lists
+    final toAssets = offer.toAssets
+        .where((a) => a.pick != null)
+        .map((a) => a.pick!)
+        .toList();
+    final fromAssets = offer.fromAssets
+        .where((a) => a.pick != null)
+        .map((a) => a.pick!)
+        .toList();
+
     final updatedOrder = state.order.map((p) {
       DraftPick updated = p;
-      for (final give in offer.toAssets) {
-        if (p.pickOverall == give.pickOverall && p.round == give.round) {
+      for (final give in toAssets) {
+        if (_samePick(p, give)) {
           // toAssets are given by toTeam -> fromTeam acquires them
-          updated = DraftPick(
-            year: p.year,
-            round: p.round,
-            pickOverall: p.pickOverall,
-            pickInRound: p.pickInRound,
-            teamAbbr: offer.fromTeam,
-            team: p.team,
-            originalTeamAbbr: p.originalTeamAbbr,
-            isCompensatory: p.isCompensatory,
-          );
+          updated = _withOwner(p, offer.fromTeam);
         }
       }
-      for (final get in offer.fromAssets) {
-        if (p.pickOverall == get.pickOverall && p.round == get.round) {
+      for (final get in fromAssets) {
+        if (_samePick(p, get)) {
           // fromAssets are given by fromTeam -> toTeam acquires them
-          updated = DraftPick(
-            year: p.year,
-            round: p.round,
-            pickOverall: p.pickOverall,
-            pickInRound: p.pickInRound,
-            teamAbbr: offer.toTeam,
-            team: p.team,
-            originalTeamAbbr: p.originalTeamAbbr,
-            isCompensatory: p.isCompensatory,
-          );
+          updated = _withOwner(p, offer.toTeam);
         }
       }
       return updated;
@@ -280,6 +283,26 @@ class DraftController extends StateNotifier<DraftState> {
 
     state = state.copyWith(order: updatedOrder);
     return true;
+  }
+
+  bool _samePick(DraftPick a, DraftPick b) {
+    return a.year == b.year &&
+        a.round == b.round &&
+        a.pickOverall == b.pickOverall &&
+        a.pickInRound == b.pickInRound;
+  }
+
+  DraftPick _withOwner(DraftPick pick, String teamAbbr) {
+    return DraftPick(
+      year: pick.year,
+      round: pick.round,
+      pickOverall: pick.pickOverall,
+      pickInRound: pick.pickInRound,
+      teamAbbr: teamAbbr,
+      team: pick.team,
+      originalTeamAbbr: pick.originalTeamAbbr,
+      isCompensatory: pick.isCompensatory,
+    );
   }
 
   @override
