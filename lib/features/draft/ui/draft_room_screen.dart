@@ -776,6 +776,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
               return LayoutBuilder(
                 builder: (context, constraints) {
                   final isNarrow = constraints.maxWidth < 360;
+                  final usePlusOnly = !recapCollapsed && isNarrow;
                   final college = (p.college ?? '').trim();
                   final subtitle = isNarrow
                       ? [
@@ -822,7 +823,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                     // Keep the call-to-action compact so the player name doesn't get squeezed
                     // on smaller screens.
                     trailing: canPick
-                        ? (isNarrow
+                        ? (usePlusOnly
                             ? FilledButton(
                                 onPressed: () => controller.draftProspect(p),
                                 style: FilledButton.styleFrom(
