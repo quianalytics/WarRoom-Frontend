@@ -12,6 +12,7 @@ import 'dart:async';
 import 'dart:math';
 import '../../../core/storage/local_store.dart';
 import 'draft_speed.dart';
+import '../../../core/observability/error_reporter.dart';
 
 class DraftController extends StateNotifier<DraftState> {
   DraftController(this._repo) : super(DraftState.initial());
@@ -76,8 +77,12 @@ class DraftController extends StateNotifier<DraftState> {
       _startClockForCurrentPick();
       _maybeOfferTrade();
       _maybeScheduleCpuPick();
-    } catch (e) {
-      state = state.copyWith(loading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorReporter.report(e, st, context: 'DraftController.start');
+      state = state.copyWith(
+        loading: false,
+        error: 'Unable to load draft data. Check your connection and try again.',
+      );
     }
   }
 

@@ -1,10 +1,25 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_router.dart';
 import './theme/app_theme.dart';
+import './core/observability/error_reporter.dart';
 
 void main() {
-  runApp(const ProviderScope(child: WarRoomDraftApp()));
+  FlutterError.onError = (details) {
+    ErrorReporter.report(
+      details.exception,
+      details.stack,
+      context: 'FlutterError',
+    );
+    FlutterError.presentError(details);
+  };
+
+  runZonedGuarded(() {
+    runApp(const ProviderScope(child: WarRoomDraftApp()));
+  }, (error, stack) {
+    ErrorReporter.report(error, stack, context: 'Zone');
+  });
 }
 
 class WarRoomDraftApp extends StatelessWidget {

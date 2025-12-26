@@ -461,13 +461,65 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         child: state.loading
             ? const Center(child: CircularProgressIndicator())
             : state.error != null
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(state.error!),
-                ),
-              )
+            ? _errorState(context, state)
             : _content(context, state),
+      ),
+    );
+  }
+
+  Widget _errorState(BuildContext context, DraftState state) {
+    final controller = ref.read(draftControllerProvider.notifier);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Panel(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Draft load failed',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                state.error ?? 'Something went wrong.',
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => context.go('/setup'),
+                      child: const Text('Back'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        if (widget.resume) {
+                          await controller.resumeSavedDraft(widget.year);
+                          controller.setSpeedPreset(widget.speedPreset);
+                        } else {
+                          controller.start(
+                            year: widget.year,
+                            userTeams: widget.controlledTeams
+                                .map((e) => e.toUpperCase())
+                                .toList(),
+                            speedPreset: widget.speedPreset,
+                          );
+                        }
+                      },
+                      child: const Text('Retry'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
