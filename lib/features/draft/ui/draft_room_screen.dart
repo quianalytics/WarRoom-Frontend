@@ -14,6 +14,7 @@ import '../../../ui/icon_pill.dart';
 import '../../../ui/panel.dart';
 import '../../../ui/pick_card.dart';
 import '../../../ui/war_room_background.dart';
+import '../../../ui/staggered_reveal.dart';
 import '../../../theme/app_theme.dart';
 
 class DraftRoomScreen extends ConsumerStatefulWidget {
@@ -38,7 +39,8 @@ class DraftRoomScreen extends ConsumerStatefulWidget {
   ConsumerState<DraftRoomScreen> createState() => _DraftRoomScreenState();
 }
 
-class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
+class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
+    with SingleTickerProviderStateMixin {
   String search = '';
   String? positionFilter;
   String? pickLogTeamFilter; // null = All Teams
@@ -61,12 +63,17 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   final List<String> _tradeTickerQueue = [];
   String? _tradeTickerCurrent;
   int _tradeTickerToken = 0;
+  late final AnimationController _shimmerController;
 
   @override
   void initState() {
     super.initState();
     _tradeFrequency = widget.tradeFrequency;
     _tradeStrictness = widget.tradeStrictness;
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
 
     // Avoid Riverpod provider mutation during build/lifecycle.
     Future.microtask(() async {
@@ -97,6 +104,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   @override
   void dispose() {
     _pickLogScroll.dispose();
+    _shimmerController.dispose();
     super.dispose();
   }
 
@@ -666,14 +674,13 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
 
     final userTeams =
         state.userTeams.map((t) => t.toUpperCase()).toSet();
-    final cpuOnly = newEntries.where((entry) {
+    final summaries = newEntries.map((entry) {
       final from = entry.fromTeam.toUpperCase();
       final to = entry.toTeam.toUpperCase();
-      return !userTeams.contains(from) && !userTeams.contains(to);
+      final isUserTrade =
+          userTeams.contains(from) || userTeams.contains(to);
+      return isUserTrade ? 'USER TRADE: ${entry.summary}' : entry.summary;
     }).toList();
-    if (cpuOnly.isEmpty) return;
-
-    final summaries = cpuOnly.map((e) => e.summary).toList();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
@@ -709,10 +716,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.swap_horiz, size: 16, color: AppColors.blue),
+            const Icon(Icons.campaign, size: 16, color: AppColors.blue),
             const SizedBox(width: 8),
             const Text(
-              'CPU TRADES:',
+              'TRADE ALERT:',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 color: AppColors.text,
@@ -857,10 +864,9 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Expanded(
-          child: Text(
+          child: _onClockLabel(
             state.currentPick?.label ?? 'Draft complete',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-            overflow: TextOverflow.ellipsis,
+            shimmer: !state.isComplete,
           ),
         ),
         const SizedBox(width: 10),
@@ -890,6 +896,53 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         ),
         const SizedBox(width: 10),
         _statusChip(state),
+      ],
+    );
+  }
+
+  Widget _onClockLabel(String text, {required bool shimmer}) {
+    return Stack(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.surface2,
+            borderRadius: AppRadii.r12,
+            border: Border.all(color: AppColors.borderStrong),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (shimmer)
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: AppRadii.r12,
+              child: AnimatedBuilder(
+                animation: _shimmerController,
+                builder: (context, _) {
+                  final x = (_shimmerController.value * 2 - 0.5);
+                  return Transform.translate(
+                    offset: Offset(x * 120, 0),
+                    child: Container(
+                      width: 120,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color(0x00FFFFFF),
+                            Color(0x33A7E3FF),
+                            Color(0x00FFFFFF),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1026,57 +1079,60 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                             ))
                       : null;
 
-                  return PickCard(
-                    glowColor: AppColors.blue,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  _rankPill(p.rank),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      p.name,
-                                      maxLines: isNarrow ? 2 : 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.text,
+                  return StaggeredReveal(
+                    index: i,
+                    child: PickCard(
+                      glowColor: AppColors.blue,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    _rankPill(p.rank),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        p.name,
+                                        maxLines: isNarrow ? 2 : 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.text,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  if (!isNarrow) ...[
-                                    const SizedBox(width: 8),
-                                    _posPill(p.position),
+                                    if (!isNarrow) ...[
+                                      const SizedBox(width: 8),
+                                      _posPill(p.position),
+                                    ],
                                   ],
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                subtitle,
-                                maxLines: isNarrow ? 2 : 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.textMuted,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 6),
+                                Text(
+                                  subtitle,
+                                  maxLines: isNarrow ? 2 : 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        if (action != null) ...[
-                          const SizedBox(width: 10),
-                          action,
+                          if (action != null) ...[
+                            const SizedBox(width: 10),
+                            action,
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   );
                 },
@@ -1286,8 +1342,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                           teamColors[pick.teamAbbr.toUpperCase()] ??
                               AppColors.blue;
                       final teamColor = _readableTeamColor(teamColorRaw);
-                      return LayoutBuilder(
-                        builder: (context, constraints) {
+                      return StaggeredReveal(
+                        index: i,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
                           final isNarrow = constraints.maxWidth < 300;
                           final badge = Container(
                             padding: EdgeInsets.symmetric(
@@ -1382,6 +1440,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                                   ),
                           );
                         },
+                        ),
                       );
                     },
                   ),

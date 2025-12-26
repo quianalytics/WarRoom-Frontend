@@ -14,6 +14,7 @@ import '../../../theme/app_theme.dart';
 import '../../../ui/panel.dart';
 import '../../../ui/pick_card.dart';
 import '../../../ui/war_room_background.dart';
+import '../../../ui/staggered_reveal.dart';
 
 class DraftRecapScreen extends ConsumerStatefulWidget {
   const DraftRecapScreen({super.key});
@@ -224,9 +225,11 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                               final teamColorRaw =
                                   teamColors[pr.teamAbbr.toUpperCase()] ??
                                       AppColors.blue;
-                              return PickCard(
-                                glowColor: teamColorRaw,
-                                child: Row(
+                              return StaggeredReveal(
+                                index: i,
+                                child: PickCard(
+                                  glowColor: teamColorRaw,
+                                  child: Row(
                                   children: [
                                     _gradeChip(grade.letter),
                                     const SizedBox(width: 12),
@@ -277,6 +280,7 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                                       ),
                                     ),
                                   ],
+                                  ),
                                 ),
                               );
                             },
