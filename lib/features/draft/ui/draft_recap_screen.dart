@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:io';
@@ -309,7 +310,9 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
     try {
       final bytes = await _captureRecap();
       if (bytes == null) return;
-      final file = await _writeTempFile(bytes);
+      final framed = await _frameRecap(bytes);
+      if (framed == null) return;
+      final file = await _writeTempFile(framed);
       if (file == null || !mounted) return;
       await Share.shareXFiles(
         [XFile(file.path)],
@@ -336,8 +339,10 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
     try {
       final bytes = await _captureRecap();
       if (bytes == null) return;
+      final framed = await _frameRecap(bytes);
+      if (framed == null) return;
       final result = await ImageGallerySaver.saveImage(
-        bytes,
+        framed,
         quality: 100,
         name: 'warroom_recap_${DateTime.now().millisecondsSinceEpoch}',
       );
@@ -431,6 +436,179 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
     final total = grades.fold<double>(0, (s, g) => s + g.score);
     final avg = total / grades.length;
     return _scoreToGrade(avg);
+  }
+
+  Future<Uint8List?> _frameRecap(Uint8List bytes) async {
+    if (_exporting) return null;
+    try {
+      final state = ref.read(draftControllerProvider);
+      final picks = state.picksMade
+          .where((p) => state.userTeams
+              .map((t) => t.toUpperCase())
+              .contains(p.teamAbbr.toUpperCase()))
+          .toList();
+      final grades = picks.map(_gradeForPick).toList();
+      final avg = _avgScore(grades);
+      final recapImage = await _decodeImage(bytes);
+      if (recapImage == null) return null;
+      return _composeFramedImage(
+        recapImage,
+        picksCount: picks.length,
+        avgGrade: avg.letter,
+        avgScore: avg.score,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<ui.Image?> _decodeImage(Uint8List bytes) {
+    final completer = Completer<ui.Image>();
+    ui.decodeImageFromList(bytes, completer.complete);
+    return completer.future;
+  }
+
+  Future<Uint8List?> _composeFramedImage(
+    ui.Image recap, {
+    required int picksCount,
+    required String avgGrade,
+    required double avgScore,
+  }) async {
+    const padding = 40.0;
+    const badgePadding = 10.0;
+    const badgeRadius = 10.0;
+    const borderRadius = 18.0;
+    const frameColor = Color(0xFF0B0F16);
+    const accent = Color(0xFF4ED6FF);
+    final width = recap.width + (padding * 2).toInt();
+    final height = recap.height + (padding * 2).toInt();
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    final bgPaint = Paint()..color = frameColor;
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+      bgPaint,
+    );
+
+    final frameRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        padding,
+        padding,
+        recap.width.toDouble(),
+        recap.height.toDouble(),
+      ),
+      const Radius.circular(borderRadius),
+    );
+    final framePaint = Paint()
+      ..color = const Color(0xFF111827)
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(frameRect, framePaint);
+
+    final borderPaint = Paint()
+      ..color = accent.withOpacity(0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawRRect(frameRect, borderPaint);
+
+    canvas.drawImage(recap, Offset(padding, padding), Paint());
+
+    final titleStyle = const TextStyle(
+      color: Color(0xFFF2F7FF),
+      fontSize: 18,
+      fontWeight: FontWeight.w800,
+    );
+    final title = _drawText(
+      canvas,
+      'WarRoom Draft Recap',
+      Offset(padding, 14),
+      titleStyle,
+    );
+    _drawText(
+      canvas,
+      'Powered by WarRoom',
+      Offset(width - padding - title.width, height - 22),
+      const TextStyle(
+        color: Color(0x669DB2CC),
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+
+    final badgeY = padding - 18;
+    final badge1 = _badgeText(
+      canvas,
+      'PICKS: $picksCount',
+      Offset(padding, badgeY),
+      badgePadding,
+      badgeRadius,
+    );
+    _badgeText(
+      canvas,
+      'AVG GRADE: $avgGrade (${avgScore.toStringAsFixed(1)})',
+      Offset(padding + badge1.width + 12, badgeY),
+      badgePadding,
+      badgeRadius,
+    );
+
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(width, height);
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    return data?.buffer.asUint8List();
+  }
+
+  _TextLayout _drawText(
+    Canvas canvas,
+    String text,
+    Offset offset,
+    TextStyle style,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(canvas, offset);
+    return _TextLayout(painter.width, painter.height);
+  }
+
+  _TextLayout _badgeText(
+    Canvas canvas,
+    String text,
+    Offset offset,
+    double padding,
+    double radius,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          color: Color(0xFFF2F7FF),
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final rect = Rect.fromLTWH(
+      offset.dx,
+      offset.dy,
+      painter.width + padding * 2,
+      painter.height + padding * 1.2,
+    );
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(radius));
+    final paint = Paint()..color = const Color(0xFF172033);
+    final stroke = Paint()
+      ..color = const Color(0x334ED6FF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    canvas.drawRRect(rrect, paint);
+    canvas.drawRRect(rrect, stroke);
+    painter.paint(
+      canvas,
+      Offset(offset.dx + padding, offset.dy + padding * 0.4),
+    );
+    return _TextLayout(rect.width, rect.height);
   }
 
   _Grade _scoreToGrade(double score) {
@@ -560,4 +738,11 @@ class _Grade {
   final double score;
 
   const _Grade(this.letter, this.score);
+}
+
+class _TextLayout {
+  final double width;
+  final double height;
+
+  const _TextLayout(this.width, this.height);
 }

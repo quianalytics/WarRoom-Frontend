@@ -241,7 +241,7 @@ class _SetupScreenState extends State<SetupScreen> {
                     children: [
                       const Expanded(
                         child: Text(
-                          'Sound + haptics',
+                          'Sound + Haptics',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),

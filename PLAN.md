@@ -179,6 +179,8 @@ Parsing notes:
   so each trade gets a full scroll before the next begins.
 - Setup includes a Sound + Haptics toggle persisted in `LocalStore`, and draft
   feedback respects the saved setting.
+- Recap share/save applies a branded frame (title, watermark, badge stats) before
+  exporting or saving the screenshot.
 - Team colors are used in multiple UI surfaces (draft recap, pick log filters,
   trade dialogs, trade inbox, and trade sheets).
 - Team colors are lightened when needed to keep text readable on dark surfaces.
