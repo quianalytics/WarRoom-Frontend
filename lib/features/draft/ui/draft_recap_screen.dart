@@ -12,6 +12,8 @@ import '../logic/draft_state.dart';
 import '../providers.dart';
 import '../../../theme/app_theme.dart';
 import '../../../ui/panel.dart';
+import '../../../ui/pick_card.dart';
+import '../../../ui/war_room_background.dart';
 
 class DraftRecapScreen extends ConsumerStatefulWidget {
   const DraftRecapScreen({super.key});
@@ -78,8 +80,7 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
           ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.background),
+      body: WarRoomBackground(
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -104,12 +105,12 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                                   const SizedBox(width: 12),
                                   DropdownButton<bool>(
                                     value: _showAllTeams,
-                                    items: [
-                                      const DropdownMenuItem(
+                                    items: const [
+                                      DropdownMenuItem(
                                         value: false,
                                         child: Text('My Teams'),
                                       ),
-                                      const DropdownMenuItem(
+                                      DropdownMenuItem(
                                         value: true,
                                         child: Text('All Teams'),
                                       ),
@@ -198,14 +199,14 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 ...tradeEntries.map(
-                                (t) => Text(
-                                  '• ${t.summary}',
-                                  style: TextStyle(
-                                    color: _readableTeamColor(
-                                      _tradeTextColor(t, teamColors),
+                                  (t) => Text(
+                                    '• ${t.summary}',
+                                    style: TextStyle(
+                                      color: _readableTeamColor(
+                                        _tradeTextColor(t, teamColors),
+                                      ),
                                     ),
                                   ),
-                                ),
                                 ),
                               ],
                             ),
@@ -220,7 +221,11 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                             itemBuilder: (context, i) {
                               final pr = picks[i];
                               final grade = _gradeForPick(pr);
-                              return Panel(
+                              final teamColorRaw =
+                                  teamColors[pr.teamAbbr.toUpperCase()] ??
+                                      AppColors.blue;
+                              return PickCard(
+                                glowColor: teamColorRaw,
                                 child: Row(
                                   children: [
                                     _gradeChip(grade.letter),
@@ -254,29 +259,22 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: (teamColors[
-                                                    pr.teamAbbr.toUpperCase()] ??
-                                                AppColors.blue)
-                                            .withOpacity(0.2),
+                                        color: teamColorRaw.withOpacity(0.2),
                                         borderRadius:
                                             BorderRadius.circular(999),
                                         border: Border.all(
-                                          color: teamColors[
-                                                  pr.teamAbbr.toUpperCase()] ??
-                                              AppColors.blue,
+                                          color: teamColorRaw,
                                         ),
                                       ),
-                                    child: Text(
-                                      pr.teamAbbr.toUpperCase(),
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        color: _readableTeamColor(
-                                          teamColors[
-                                                  pr.teamAbbr.toUpperCase()] ??
-                                              AppColors.text,
+                                      child: Text(
+                                        pr.teamAbbr.toUpperCase(),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          color: _readableTeamColor(
+                                            teamColorRaw,
+                                          ),
                                         ),
                                       ),
-                                    ),
                                     ),
                                   ],
                                 ),

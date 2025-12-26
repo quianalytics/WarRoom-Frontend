@@ -21,6 +21,11 @@ class Panel extends StatelessWidget {
             blurRadius: 16,
             offset: Offset(0, 8),
           ),
+          BoxShadow(
+            color: Color(0x22002C4F),
+            blurRadius: 24,
+            offset: Offset(0, 12),
+          ),
         ],
       ),
       child: child,

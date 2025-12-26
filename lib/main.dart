@@ -28,27 +28,39 @@ class WarRoomDraftApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final base = ThemeData.dark(useMaterial3: true);
+    final textTheme = base.textTheme.apply(
+      bodyColor: AppColors.text,
+      displayColor: AppColors.text,
+    );
 
     final theme = base.copyWith(
       scaffoldBackgroundColor: AppColors.bg,
       canvasColor: AppColors.bg,
       colorScheme: base.colorScheme.copyWith(
-        primary: AppColors.blue,
+        primary: AppColors.blueDeep,
         secondary: AppColors.mint,
         surface: AppColors.surface,
       ),
 
       // Typography: slightly tighter + more “product” feel
-      textTheme: base.textTheme.copyWith(
-        titleLarge: base.textTheme.titleLarge?.copyWith(
+      textTheme: textTheme.copyWith(
+        displaySmall: textTheme.displaySmall?.copyWith(
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.6,
+        ),
+        titleLarge: textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w700,
+          letterSpacing: -0.3,
+        ),
+        titleMedium: textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
           letterSpacing: -0.2,
         ),
-        titleMedium: base.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.1,
+        labelLarge: textTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
         ),
-        bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.25),
+        bodyMedium: textTheme.bodyMedium?.copyWith(height: 1.3),
       ),
 
       // AppBar: flatter, cleaner, not “stock Android”
@@ -61,7 +73,7 @@ class WarRoomDraftApp extends StatelessWidget {
           color: AppColors.text,
           fontSize: 18,
           fontWeight: FontWeight.w700,
-          letterSpacing: -0.2,
+          letterSpacing: -0.3,
         ),
         iconTheme: IconThemeData(color: AppColors.text),
       ),
@@ -69,12 +81,12 @@ class WarRoomDraftApp extends StatelessWidget {
       // Buttons: pill-ish, clean, no heavy shadows
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.blue,
-          foregroundColor: Colors.black,
+          backgroundColor: AppColors.blueDeep,
+          foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           textStyle: const TextStyle(
             fontWeight: FontWeight.w700,
-            letterSpacing: -0.1,
+            letterSpacing: 0.1,
           ),
           shape: const RoundedRectangleBorder(borderRadius: AppRadii.r16),
         ),
@@ -85,7 +97,7 @@ class WarRoomDraftApp extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           textStyle: const TextStyle(
             fontWeight: FontWeight.w700,
-            letterSpacing: -0.1,
+            letterSpacing: 0.1,
           ),
           shape: const RoundedRectangleBorder(borderRadius: AppRadii.r16),
           side: const BorderSide(color: AppColors.borderStrong),
@@ -96,7 +108,7 @@ class WarRoomDraftApp extends StatelessWidget {
           foregroundColor: AppColors.text,
           textStyle: const TextStyle(
             fontWeight: FontWeight.w700,
-            letterSpacing: -0.1,
+            letterSpacing: 0.1,
           ),
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/storage/local_store.dart';
 import '../draft/logic/draft_speed.dart';
 import '../../theme/app_theme.dart';
+import '../../ui/war_room_background.dart';
 
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
@@ -94,8 +95,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('WarRoom Draft Setup')),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.background),
+      body: WarRoomBackground(
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),

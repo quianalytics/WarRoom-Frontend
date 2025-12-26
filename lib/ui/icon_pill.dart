@@ -31,6 +31,11 @@ class IconPill extends StatelessWidget {
               blurRadius: 10,
               offset: Offset(0, 4),
             ),
+            BoxShadow(
+              color: Color(0x22002C4F),
+              blurRadius: 14,
+              offset: Offset(0, 6),
+            ),
           ],
         ),
         child: Icon(icon, size: 14, color: AppColors.text),

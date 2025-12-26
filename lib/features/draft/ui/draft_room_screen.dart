@@ -11,6 +11,8 @@ import '../models/draft_pick.dart';
 import 'widgets/trade_sheet.dart';
 import '../../../ui/icon_pill.dart';
 import '../../../ui/panel.dart';
+import '../../../ui/pick_card.dart';
+import '../../../ui/war_room_background.dart';
 import '../../../theme/app_theme.dart';
 
 class DraftRoomScreen extends ConsumerStatefulWidget {
@@ -461,8 +463,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.background),
+      body: WarRoomBackground(
         child: state.loading
             ? const Center(child: CircularProgressIndicator())
             : state.error != null
@@ -845,7 +846,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         Expanded(
           child: ListView.separated(
             itemCount: board.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final p = board[i];
               final canPick = state.isUserOnClock && !state.isComplete;
@@ -861,84 +862,99 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                           if (college.isNotEmpty) college,
                         ].join(' • ')
                       : college;
+                  final action = canPick
+                      ? (usePlusOnly
+                          ? FilledButton(
+                              onPressed: () => controller.draftProspect(p),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.blue,
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                minimumSize: const Size(0, 36),
+                                tapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text(
+                                '+',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 18,
+                                ),
+                              ),
+                            )
+                          : FilledButton.icon(
+                              onPressed: () => controller.draftProspect(p),
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('Draft'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.blue,
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 10,
+                                ),
+                                minimumSize: const Size(0, 36),
+                                tapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ))
+                      : null;
 
-                  return ListTile(
-                    dense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 2,
+                  return PickCard(
+                    glowColor: AppColors.blue,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
                     ),
-                    title: Row(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _rankPill(p.rank),
-                        const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            p.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            // Explicit color avoids theme edge-cases and ensures visibility
-                            // even when trailing actions are present.
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.text,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  _rankPill(p.rank),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      p.name,
+                                      maxLines: isNarrow ? 2 : 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.text,
+                                      ),
+                                    ),
+                                  ),
+                                  if (!isNarrow) ...[
+                                    const SizedBox(width: 8),
+                                    _posPill(p.position),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                subtitle,
+                                maxLines: isNarrow ? 2 : 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        if (!isNarrow) ...[
-                          const SizedBox(width: 8),
-                          _posPill(p.position),
+                        if (action != null) ...[
+                          const SizedBox(width: 10),
+                          action,
                         ],
                       ],
                     ),
-                    subtitle: Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: AppColors.textMuted),
-                    ),
-                    // Keep the call-to-action compact so the player name doesn't get squeezed
-                    // on smaller screens.
-                    trailing: canPick
-                        ? (usePlusOnly
-                            ? FilledButton(
-                                onPressed: () => controller.draftProspect(p),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: AppColors.blue,
-                                  foregroundColor: Colors.black,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 10,
-                                  ),
-                                  minimumSize: const Size(0, 36),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: const Text(
-                                  '+',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              )
-                            : FilledButton.icon(
-                                onPressed: () => controller.draftProspect(p),
-                                icon: const Icon(Icons.add, size: 18),
-                                label: const Text('Draft'),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: AppColors.blue,
-                                  foregroundColor: Colors.black,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 10,
-                                  ),
-                                  minimumSize: const Size(0, 36),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ))
-                        : null,
                   );
                 },
               );
@@ -1129,7 +1145,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                 : ListView.separated(
                     controller: _pickLogScroll,
                     itemCount: recapRows.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, i) {
                       final row = recapRows[i];
                       final pick = row.pick;
@@ -1143,33 +1159,67 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                               _lastPickFocusId == _pickKey(pick)
                           ? _lastPickTileKey
                           : ValueKey('pick-${_pickKey(pick)}');
-                      final teamColor = _readableTeamColor(
-                        teamColors[pick.teamAbbr.toUpperCase()] ??
-                            AppColors.textMuted,
-                      );
-                      return ListTile(
+                      final teamColorRaw =
+                          teamColors[pick.teamAbbr.toUpperCase()] ??
+                              AppColors.blue;
+                      final teamColor = _readableTeamColor(teamColorRaw);
+                      return PickCard(
                         key: key,
-                        dense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 2,
+                        glowColor: teamColorRaw,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
                         ),
-                        title: Text(
-                          prospect?.name ?? 'Pick ${pick.pickOverall}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: prospect == null
-                                ? AppColors.textMuted
-                                : AppColors.text,
-                          ),
-                        ),
-                        subtitle: Text(
-                          '${pick.pickOverall}. ${pick.teamAbbr}  •  R${pick.round}.${pick.pickInRound.toString().padLeft(2, '0')}$via  •  $detail',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: teamColor),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: teamColorRaw.withOpacity(0.18),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: teamColorRaw.withOpacity(0.6),
+                                ),
+                              ),
+                              child: Text(
+                                '#${pick.pickOverall}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: teamColor,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    prospect?.name ?? 'Pick ${pick.pickOverall}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: prospect == null
+                                          ? AppColors.textMuted
+                                          : AppColors.text,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${pick.teamAbbr}  •  R${pick.round}.${pick.pickInRound.toString().padLeft(2, '0')}$via  •  $detail',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(color: teamColor),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     },
