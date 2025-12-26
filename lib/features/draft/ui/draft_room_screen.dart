@@ -1199,64 +1199,102 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                           teamColors[pick.teamAbbr.toUpperCase()] ??
                               AppColors.blue;
                       final teamColor = _readableTeamColor(teamColorRaw);
-                      return PickCard(
-                        key: key,
-                        glowColor: teamColorRaw,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: teamColorRaw.withOpacity(0.18),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: teamColorRaw.withOpacity(0.6),
-                                ),
-                              ),
-                              child: Text(
-                                '#${pick.pickOverall}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: teamColor,
-                                ),
+                      return LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isNarrow = constraints.maxWidth < 300;
+                          final badge = Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isNarrow ? 6 : 8,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: teamColorRaw.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: teamColorRaw.withOpacity(0.6),
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    prospect?.name ?? 'Pick ${pick.pickOverall}',
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: prospect == null
-                                          ? AppColors.textMuted
-                                          : AppColors.text,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${pick.teamAbbr}  •  R${pick.round}.${pick.pickInRound.toString().padLeft(2, '0')}$via  •  $detail',
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(color: teamColor),
-                                  ),
-                                ],
+                            child: Text(
+                              '#${pick.pickOverall}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: teamColor,
                               ),
                             ),
-                          ],
-                        ),
+                          );
+                          return PickCard(
+                            key: key,
+                            glowColor: teamColorRaw,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            child: isNarrow
+                                ? Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      badge,
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        prospect?.name ??
+                                            'Pick ${pick.pickOverall}',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          color: prospect == null
+                                              ? AppColors.textMuted
+                                              : AppColors.text,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${pick.teamAbbr}  •  R${pick.round}.${pick.pickInRound.toString().padLeft(2, '0')}$via  •  $detail',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(color: teamColor),
+                                      ),
+                                    ],
+                                  )
+                                : Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      badge,
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              prospect?.name ??
+                                                  'Pick ${pick.pickOverall}',
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                color: prospect == null
+                                                    ? AppColors.textMuted
+                                                    : AppColors.text,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${pick.teamAbbr}  •  R${pick.round}.${pick.pickInRound.toString().padLeft(2, '0')}$via  •  $detail',
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style:
+                                                  TextStyle(color: teamColor),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          );
+                        },
                       );
                     },
                   ),
