@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -54,8 +55,12 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
   late double _tradeFrequency;
   late double _tradeStrictness;
   bool _showedDraftComplete = false;
-  int _lastTradeLogVersion = 0;
+  int _lastTradeLogCount = 0;
   bool _listenersBound = false;
+  bool _tradeTickerVisible = false;
+  final List<String> _tradeTickerQueue = [];
+  String? _tradeTickerCurrent;
+  int _tradeTickerToken = 0;
 
   @override
   void initState() {
@@ -440,7 +445,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     _bindListeners();
     _maybeShowDraftCompletePrompt(state);
     _maybePresentPendingTrade(state);
-    _maybeShowTradeSnack(state);
+    _maybeShowTradeTicker(state);
 
     return Scaffold(
       appBar: AppBar(
@@ -653,19 +658,91 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     });
   }
 
-  void _maybeShowTradeSnack(DraftState state) {
-    if (state.tradeLogVersion <= _lastTradeLogVersion) return;
-    _lastTradeLogVersion = state.tradeLogVersion;
-    final message = state.tradeLog.isNotEmpty
-        ? 'TRADE ALERT: ${state.tradeLog.last.summary}'
-        : null;
-    if (message == null || !mounted) return;
+  void _maybeShowTradeTicker(DraftState state) {
+    if (state.tradeLog.length <= _lastTradeLogCount) return;
+    final newEntries =
+        state.tradeLog.sublist(_lastTradeLogCount, state.tradeLog.length);
+    _lastTradeLogCount = state.tradeLog.length;
+
+    final userTeams =
+        state.userTeams.map((t) => t.toUpperCase()).toSet();
+    final cpuOnly = newEntries.where((entry) {
+      final from = entry.fromTeam.toUpperCase();
+      final to = entry.toTeam.toUpperCase();
+      return !userTeams.contains(from) && !userTeams.contains(to);
+    }).toList();
+    if (cpuOnly.isEmpty) return;
+
+    final summaries = cpuOnly.map((e) => e.summary).toList();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      setState(() {
+        _tradeTickerQueue.addAll(summaries);
+        if (_tradeTickerCurrent == null && _tradeTickerQueue.isNotEmpty) {
+          _tradeTickerCurrent = _tradeTickerQueue.removeAt(0);
+        }
+        _tradeTickerVisible = _tradeTickerCurrent != null;
+        _tradeTickerToken += 1;
+      });
     });
+  }
+
+  Widget _tradeTickerStrip() {
+    final text = _tradeTickerCurrent ?? '';
+    final token = _tradeTickerToken;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: Container(
+        key: ValueKey(text),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: AppGradients.panel,
+          borderRadius: AppRadii.r12,
+          border: Border.all(color: AppColors.borderStrong),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x55000000),
+              blurRadius: 12,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.swap_horiz, size: 16, color: AppColors.blue),
+            const SizedBox(width: 8),
+            const Text(
+              'CPU TRADES:',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _TradeTickerMarquee(
+                text: text,
+                onComplete: () {
+                  if (!mounted) return;
+                  if (token != _tradeTickerToken) return;
+                  setState(() {
+                    if (_tradeTickerQueue.isNotEmpty) {
+                      _tradeTickerCurrent = _tradeTickerQueue.removeAt(0);
+                      _tradeTickerVisible = true;
+                      _tradeTickerToken += 1;
+                    } else {
+                      _tradeTickerCurrent = null;
+                      _tradeTickerVisible = false;
+                    }
+                  });
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmExit(BuildContext context) async {
@@ -722,6 +799,11 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
         children: [
           Panel(child: _header(context, state)),
           const SizedBox(height: 12),
+          if (_tradeTickerVisible && _tradeTickerQueue.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _tradeTickerStrip(),
+            ),
           Expanded(
             child: Row(
               children: [
@@ -1488,6 +1570,115 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _TradeTickerMarquee extends StatefulWidget {
+  const _TradeTickerMarquee({
+    required this.text,
+    required this.onComplete,
+  });
+
+  final String text;
+  final VoidCallback onComplete;
+
+  @override
+  State<_TradeTickerMarquee> createState() => _TradeTickerMarqueeState();
+}
+
+class _TradeTickerMarqueeState extends State<_TradeTickerMarquee>
+    with SingleTickerProviderStateMixin {
+  late final ScrollController _scrollController;
+  late TextStyle _textStyle;
+  static const double _speed = 36; // pixels per second
+  static const double _gap = 48;
+  Timer? _completeTimer;
+  bool _started = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _textStyle = DefaultTextStyle.of(context)
+        .style
+        .copyWith(color: AppColors.textMuted);
+    _scheduleStart();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TradeTickerMarquee oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) {
+      _started = false;
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
+      _scheduleStart();
+    }
+  }
+
+  void _scheduleStart() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _startScroll();
+    });
+  }
+
+  Future<void> _startScroll() async {
+    if (!mounted || _started) return;
+    if (!_scrollController.hasClients) return;
+    _started = true;
+    _completeTimer?.cancel();
+    final max = _scrollController.position.maxScrollExtent;
+    if (max <= 0) {
+      _completeTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) widget.onComplete();
+      });
+      return;
+    }
+    final seconds = max / _speed;
+    await _scrollController.animateTo(
+      max,
+      duration: Duration(milliseconds: (seconds * 1000).round()),
+      curve: Curves.linear,
+    );
+    if (!mounted) return;
+    _completeTimer = Timer(const Duration(milliseconds: 800), () {
+      if (mounted) widget.onComplete();
+    });
+  }
+
+  @override
+  void dispose() {
+    _completeTimer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        scrollDirection: Axis.horizontal,
+        physics: const NeverScrollableScrollPhysics(),
+        child: Row(
+          children: [
+            Text(
+              widget.text,
+              maxLines: 1,
+              style: _textStyle,
+            ),
+            const SizedBox(width: _gap),
+          ],
+        ),
+      ),
     );
   }
 }

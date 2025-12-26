@@ -32,3 +32,13 @@ Full recap package: grades, best value picks, team summaries, and shareable card
 Customizable speed & auto‑draft: user‑defined timers, “pause on offers”, and auto‑pick AI tuned per team.
 Persistence + export: save/load drafts, export CSV/JSON, and “resume from any pick” mode.
 Visual polish: dynamic theming by team, draft‑day broadcast mode, and animated pick announcements.
+
+
+Signature visual system: define a bold “WarRoom” identity (custom type pairing, gritty texture overlay, subtle film grain, team‑color glow accents). This alone will make the app feel owned instead of generic.
+Hero moments: turn key screens into cinematic moments (home hero banner with animated draft ticker; draft room background with subtle motion; recap screen with celebratory reveal and grade “stamp” animation).
+Information hierarchy polish: reduce visual noise with bigger section headers, tighter spacing rhythm, and fewer competing accents; introduce consistent “section frames” for pick lists, trade inbox, and recap cards.
+Custom micro‑components: replace standard chips, dropdowns, and cards with custom WarRoom UI (badge pills, “pick card” with ticket‑style edge, trade offers styled like contract slips).
+Motion design pass: staggered list reveals, gentle shimmer on on‑clock pick, and subtle parallax on background panels; avoid micro‑jitter and use 120–180ms ease‑out transitions.
+Refined color language: lean into team colors but add a fixed neutral palette for readability (off‑white, slate, graphite) + controlled accent usage.
+Sound + haptics (optional): soft “pick made” click, subtle rumble on trade offer; keeps things engaging without being noisy.
+Recap share polish: auto‑layout the recap screenshot into a branded frame with watermark + draft stats badges.

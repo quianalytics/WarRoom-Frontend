@@ -175,6 +175,8 @@ Parsing notes:
   scrolls to the newest pick when in `All Teams` mode.
 - Trade offers are pruned when referenced picks pass or ownership changes, and
   stale offers are removed from the inbox/pending slots.
+- CPU trade ticker shows trade summaries in a marquee strip and now queues trades
+  so each trade gets a full scroll before the next begins.
 - Team colors are used in multiple UI surfaces (draft recap, pick log filters,
   trade dialogs, trade inbox, and trade sheets).
 - Team colors are lightened when needed to keep text readable on dark surfaces.
