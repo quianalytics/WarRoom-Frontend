@@ -68,6 +68,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
   late final AnimationController _shimmerController;
   int _lastPickSoundCount = 0;
   bool _soundHapticsEnabled = true;
+  bool _tradePopupsEnabled = true;
 
   @override
   void initState() {
@@ -108,8 +109,12 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
 
   Future<void> _loadSoundSettings() async {
     final enabled = await LocalStore.getSoundHapticsEnabled();
+    final tradePopups = await LocalStore.getTradePopupsEnabled();
     if (!mounted) return;
-    setState(() => _soundHapticsEnabled = enabled);
+    setState(() {
+      _soundHapticsEnabled = enabled;
+      _tradePopupsEnabled = tradePopups;
+    });
   }
 
   @override
@@ -410,6 +415,19 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
         const SizedBox(height: 12),
         Row(
           children: [
+            const Expanded(child: Text('Trade popups')),
+            Switch(
+              value: _tradePopupsEnabled,
+              onChanged: (v) async {
+                setState(() => _tradePopupsEnabled = v);
+                await LocalStore.setTradePopupsEnabled(v);
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
             const Text('Frequency:'),
             const SizedBox(width: 12),
             DropdownButton<double>(
@@ -629,6 +647,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     ref.listen<DraftState>(draftControllerProvider, (prev, next) {
       final offer = next.pendingTrade;
       if (offer == null) return;
+      if (!_tradePopupsEnabled) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _presentTradeOffer(offer, next);
@@ -639,6 +658,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
   void _maybePresentPendingTrade(DraftState state) {
     final offer = state.pendingTrade;
     if (offer == null) return;
+    if (!_tradePopupsEnabled) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _presentTradeOffer(offer, state);

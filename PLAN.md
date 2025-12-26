@@ -179,6 +179,8 @@ Parsing notes:
   so each trade gets a full scroll before the next begins.
 - Setup includes a Sound + Haptics toggle persisted in `LocalStore`, and draft
   feedback respects the saved setting.
+- Setup includes a Trade popups toggle persisted in `LocalStore`; when disabled,
+  offers skip modal popups but still appear in the Trade Center.
 - Recap share/save applies a branded frame (title, watermark, badge stats) before
   exporting or saving the screenshot.
 - Team colors are used in multiple UI surfaces (draft recap, pick log filters,

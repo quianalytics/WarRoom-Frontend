@@ -19,6 +19,7 @@ class _SetupScreenState extends State<SetupScreen> {
   String tradeFrequency = 'normal';
   String tradeStrictness = 'normal';
   bool soundHapticsEnabled = true;
+  bool tradePopupsEnabled = true;
 
   // Temporary static list. Next step: load from /teams.
   final allTeams = const [
@@ -93,8 +94,12 @@ class _SetupScreenState extends State<SetupScreen> {
 
   Future<void> _loadSettings() async {
     final enabled = await LocalStore.getSoundHapticsEnabled();
+    final tradePopups = await LocalStore.getTradePopupsEnabled();
     if (!mounted) return;
-    setState(() => soundHapticsEnabled = enabled);
+    setState(() {
+      soundHapticsEnabled = enabled;
+      tradePopupsEnabled = tradePopups;
+    });
   }
 
   @override
@@ -262,6 +267,33 @@ class _SetupScreenState extends State<SetupScreen> {
                     style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Trade popups',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      Switch(
+                        value: tradePopupsEnabled,
+                        onChanged: (v) async {
+                          setState(() => tradePopupsEnabled = v);
+                          await LocalStore.setTradePopupsEnabled(v);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(left: 8, right: 8, bottom: 8),
+                  child: Text(
+                    'Show trade offers as popups. Offers always appear in Trade Center.',
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 if (selected.isEmpty)
                   const Padding(
@@ -281,6 +313,9 @@ class _SetupScreenState extends State<SetupScreen> {
                             await LocalStore.setSoundHapticsEnabled(
                               soundHapticsEnabled,
                             );
+                            await LocalStore.setTradePopupsEnabled(
+                              tradePopupsEnabled,
+                            );
                             final teams = selected.toList()..sort();
                             context.go(
                               '/draft?year=$year&teams=${teams.join(',')}&speed=${speedPreset.name}&tradeFreq=$tradeFrequency&tradeStrict=$tradeStrictness',
@@ -297,6 +332,9 @@ class _SetupScreenState extends State<SetupScreen> {
                             if (!await _guardYearAvailability()) return;
                             await LocalStore.setSoundHapticsEnabled(
                               soundHapticsEnabled,
+                            );
+                            await LocalStore.setTradePopupsEnabled(
+                              tradePopupsEnabled,
                             );
                             context.go(
                               '/draft?year=$year&teams=${(selected.toList()..sort()).join(',')}&resume=1&speed=${speedPreset.name}&tradeFreq=$tradeFrequency&tradeStrict=$tradeStrictness',

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalStore {
   static const _draftKeyPrefix = 'saved_draft_';
   static const _soundHapticsKey = 'sound_haptics_enabled';
+  static const _tradePopupsKey = 'trade_popups_enabled';
 
   static Future<void> saveDraft(int year, Map<String, dynamic> json) async {
     final prefs = await SharedPreferences.getInstance();
@@ -35,5 +36,15 @@ class LocalStore {
   static Future<bool> getSoundHapticsEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_soundHapticsKey) ?? true;
+  }
+
+  static Future<void> setTradePopupsEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_tradePopupsKey, enabled);
+  }
+
+  static Future<bool> getTradePopupsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_tradePopupsKey) ?? true;
   }
 }
