@@ -726,15 +726,20 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                 onComplete: () {
                   if (!mounted) return;
                   if (token != _tradeTickerToken) return;
-                  setState(() {
-                    if (_tradeTickerQueue.isNotEmpty) {
-                      _tradeTickerCurrent = _tradeTickerQueue.removeAt(0);
-                      _tradeTickerVisible = true;
-                      _tradeTickerToken += 1;
-                    } else {
-                      _tradeTickerCurrent = null;
-                      _tradeTickerVisible = false;
-                    }
+                  setState(() => _tradeTickerVisible = false);
+                  Future.delayed(const Duration(milliseconds: 180), () {
+                    if (!mounted) return;
+                    if (token != _tradeTickerToken) return;
+                    setState(() {
+                      if (_tradeTickerQueue.isNotEmpty) {
+                        _tradeTickerCurrent = _tradeTickerQueue.removeAt(0);
+                        _tradeTickerVisible = true;
+                        _tradeTickerToken += 1;
+                      } else {
+                        _tradeTickerCurrent = null;
+                        _tradeTickerVisible = false;
+                      }
+                    });
                   });
                 },
               ),
@@ -1591,6 +1596,7 @@ class _TradeTickerMarqueeState extends State<_TradeTickerMarquee>
     with SingleTickerProviderStateMixin {
   late final ScrollController _scrollController;
   late TextStyle _textStyle;
+  double _viewportWidth = 0;
   static const double _speed = 36; // pixels per second
   static const double _gap = 48;
   Timer? _completeTimer;
@@ -1663,22 +1669,40 @@ class _TradeTickerMarqueeState extends State<_TradeTickerMarquee>
 
   @override
   Widget build(BuildContext context) {
-    return ClipRect(
-      child: SingleChildScrollView(
-        controller: _scrollController,
-        scrollDirection: Axis.horizontal,
-        physics: const NeverScrollableScrollPhysics(),
-        child: Row(
-          children: [
-            Text(
-              widget.text,
-              maxLines: 1,
-              style: _textStyle,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        if (_viewportWidth != width) {
+          _viewportWidth = width;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _started = false;
+            if (_scrollController.hasClients) {
+              _scrollController.jumpTo(0);
+            }
+            _scheduleStart();
+          });
+        }
+        final leadIn = (_viewportWidth * 0.6).clamp(64.0, 200.0);
+        return ClipRect(
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            child: Row(
+              children: [
+                SizedBox(width: leadIn),
+                Text(
+                  widget.text,
+                  maxLines: 1,
+                  style: _textStyle,
+                ),
+                const SizedBox(width: _gap),
+              ],
             ),
-            const SizedBox(width: _gap),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
