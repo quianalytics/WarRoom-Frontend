@@ -18,6 +18,7 @@ class _SetupScreenState extends State<SetupScreen> {
   DraftSpeedPreset speedPreset = DraftSpeedPreset.fast;
   String tradeFrequency = 'normal';
   String tradeStrictness = 'normal';
+  bool soundHapticsEnabled = true;
 
   // Temporary static list. Next step: load from /teams.
   final allTeams = const [
@@ -87,6 +88,13 @@ class _SetupScreenState extends State<SetupScreen> {
   void initState() {
     super.initState();
     _refreshResume();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final enabled = await LocalStore.getSoundHapticsEnabled();
+    if (!mounted) return;
+    setState(() => soundHapticsEnabled = enabled);
   }
 
   @override
@@ -227,6 +235,34 @@ class _SetupScreenState extends State<SetupScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Sound + haptics',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      Switch(
+                        value: soundHapticsEnabled,
+                        onChanged: (v) async {
+                          setState(() => soundHapticsEnabled = v);
+                          await LocalStore.setSoundHapticsEnabled(v);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(left: 8, right: 8, bottom: 8),
+                  child: Text(
+                    'Play a soft click on picks and a subtle rumble on trade offers.',
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 if (selected.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(bottom: 8),
@@ -242,6 +278,9 @@ class _SetupScreenState extends State<SetupScreen> {
                         ? null // <- DISABLED when no teams selected
                         : () async {
                             if (!await _guardYearAvailability()) return;
+                            await LocalStore.setSoundHapticsEnabled(
+                              soundHapticsEnabled,
+                            );
                             final teams = selected.toList()..sort();
                             context.go(
                               '/draft?year=$year&teams=${teams.join(',')}&speed=${speedPreset.name}&tradeFreq=$tradeFrequency&tradeStrict=$tradeStrictness',
@@ -256,6 +295,9 @@ class _SetupScreenState extends State<SetupScreen> {
                     onPressed: canResume
                         ? () async {
                             if (!await _guardYearAvailability()) return;
+                            await LocalStore.setSoundHapticsEnabled(
+                              soundHapticsEnabled,
+                            );
                             context.go(
                               '/draft?year=$year&teams=${(selected.toList()..sort()).join(',')}&resume=1&speed=${speedPreset.name}&tradeFreq=$tradeFrequency&tradeStrict=$tradeStrictness',
                             );

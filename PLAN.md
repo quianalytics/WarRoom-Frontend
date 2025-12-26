@@ -177,6 +177,8 @@ Parsing notes:
   stale offers are removed from the inbox/pending slots.
 - CPU trade ticker shows trade summaries in a marquee strip and now queues trades
   so each trade gets a full scroll before the next begins.
+- Setup includes a Sound + Haptics toggle persisted in `LocalStore`, and draft
+  feedback respects the saved setting.
 - Team colors are used in multiple UI surfaces (draft recap, pick log filters,
   trade dialogs, trade inbox, and trade sheets).
 - Team colors are lightened when needed to keep text readable on dark surfaces.

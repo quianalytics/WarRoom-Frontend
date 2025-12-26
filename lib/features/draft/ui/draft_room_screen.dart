@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers.dart';
+import '../../../core/storage/local_store.dart';
 import '../logic/draft_controller.dart';
 import '../logic/draft_speed.dart';
 import '../logic/draft_state.dart';
@@ -64,6 +66,8 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
   String? _tradeTickerCurrent;
   int _tradeTickerToken = 0;
   late final AnimationController _shimmerController;
+  int _lastPickSoundCount = 0;
+  bool _soundHapticsEnabled = true;
 
   @override
   void initState() {
@@ -74,6 +78,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
+    _loadSoundSettings();
 
     // Avoid Riverpod provider mutation during build/lifecycle.
     Future.microtask(() async {
@@ -99,6 +104,12 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
         );
       }
     });
+  }
+
+  Future<void> _loadSoundSettings() async {
+    final enabled = await LocalStore.getSoundHapticsEnabled();
+    if (!mounted) return;
+    setState(() => _soundHapticsEnabled = enabled);
   }
 
   @override
@@ -454,6 +465,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     _maybeShowDraftCompletePrompt(state);
     _maybePresentPendingTrade(state);
     _maybeShowTradeTicker(state);
+    _maybePlayPickFeedback(state);
 
     return Scaffold(
       appBar: AppBar(
@@ -643,6 +655,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      _playTradeOfferFeedback();
       final controller = ref.read(draftControllerProvider.notifier);
       if (next.clockRunning) {
         _resumeAfterTradeDialog = true;
@@ -664,6 +677,21 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
       }
       _tradeDialogOpen = false;
     });
+  }
+
+  void _maybePlayPickFeedback(DraftState state) {
+    if (!_soundHapticsEnabled) return;
+    final count = state.picksMade.length;
+    if (count <= _lastPickSoundCount) return;
+    _lastPickSoundCount = count;
+    SystemSound.play(SystemSoundType.click);
+    HapticFeedback.lightImpact();
+  }
+
+  void _playTradeOfferFeedback() {
+    if (!_soundHapticsEnabled) return;
+    SystemSound.play(SystemSoundType.alert);
+    HapticFeedback.mediumImpact();
   }
 
   void _maybeShowTradeTicker(DraftState state) {
