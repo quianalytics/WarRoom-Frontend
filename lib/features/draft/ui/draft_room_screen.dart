@@ -415,7 +415,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
         const SizedBox(height: 12),
         Row(
           children: [
-            const Expanded(child: Text('Trade popups')),
+            const Expanded(child: Text('Trade Popups')),
             Switch(
               value: _tradePopupsEnabled,
               onChanged: (v) async {

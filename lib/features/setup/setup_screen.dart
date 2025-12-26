@@ -273,7 +273,7 @@ class _SetupScreenState extends State<SetupScreen> {
                     children: [
                       const Expanded(
                         child: Text(
-                          'Trade popups',
+                          'Trade Popups',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
