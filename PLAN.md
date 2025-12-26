@@ -166,16 +166,24 @@ Parsing notes:
   - Big board list
   - Recap/pick log
   - On-clock footer
+- Home screen includes About dialog and Contact Us webview.
 - Widgets in `lib/features/draft/ui/widgets/` are feature-specific surfaces.
 - `TradeSheet` now supports multi-pick packages from both sides and future-year
   picks (next 2 drafts), shown side-by-side by team. The user can trade even when
   not on the clock, and the current pick is selectable (not forced).
 - Pick log defaults to a user-controlled team but allows `All Teams`, and auto-
   scrolls to the newest pick when in `All Teams` mode.
+- Trade offers are pruned when referenced picks pass or ownership changes, and
+  stale offers are removed from the inbox/pending slots.
 - Team colors are used in multiple UI surfaces (draft recap, pick log filters,
   trade dialogs, trade inbox, and trade sheets).
 - Team colors are lightened when needed to keep text readable on dark surfaces.
-- Shared UI primitives: `lib/ui/panel.dart`, `lib/ui/icon_pill.dart`.
+- Shared UI primitives: `lib/ui/panel.dart`, `lib/ui/icon_pill.dart`,
+  `lib/ui/pick_card.dart`, `lib/ui/war_room_background.dart`.
+- Pick cards use beveled edges and team-color glow across recap lists, prospect
+  lists, and trade assets (trade inbox, trade dialog, and trade sheet lists).
+- Pick recap sidebar allows two-line text for better readability.
+- WarRoom background layer (grid + glow) wraps home, setup, draft room, and recap.
 - Theme tokens: `lib/theme/app_theme.dart` (colors, radii, spacing).
 
 ## Error Handling

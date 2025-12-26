@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../logic/draft_state.dart';
 import '../../models/draft_pick.dart';
 import '../../models/trade.dart';
+import '../../../../theme/app_theme.dart';
+import '../../../../ui/pick_card.dart';
 
 class TradeSheetResult {
   final String partnerTeam;
@@ -175,11 +177,13 @@ class _TradeSheetState extends State<TradeSheet> {
                             picks: userPicks,
                             selected: selectedUser,
                             ownerLabel: userTeam!,
+                            teamColors: teamColors,
                           ),
                           ..._buildFutureSection(
                             title: 'Future picks',
                             picks: userFuture,
                             selected: selectedUser,
+                            teamColors: teamColors,
                           ),
                         ],
                       ),
@@ -204,11 +208,13 @@ class _TradeSheetState extends State<TradeSheet> {
                             picks: partnerPicks,
                             selected: selectedPartner,
                             ownerLabel: partner!,
+                            teamColors: teamColors,
                           ),
                           ..._buildFutureSection(
                             title: 'Future picks',
                             picks: partnerFuture,
                             selected: selectedPartner,
+                            teamColors: teamColors,
                           ),
                         ],
                       ),
@@ -249,6 +255,7 @@ class _TradeSheetState extends State<TradeSheet> {
     required List<DraftPick> picks,
     required Map<String, TradeAsset> selected,
     required String ownerLabel,
+    required Map<String, Color> teamColors,
   }) {
     if (picks.isEmpty) {
       return [
@@ -265,22 +272,27 @@ class _TradeSheetState extends State<TradeSheet> {
       ...picks.map((p) {
         final key = 'pick:${p.year}:${p.round}:${p.pickOverall}:${ownerLabel.toUpperCase()}';
         final isOn = selected.containsKey(key);
-        return CheckboxListTile(
-          dense: true,
-          value: isOn,
-          title: Text(p.label),
-          subtitle: Text(
-            'Owned by ${p.teamAbbr}${p.teamAbbr != p.originalTeamAbbr ? ' • via ${p.originalTeamAbbr}' : ''}',
+        final glow = teamColors[p.teamAbbr.toUpperCase()] ?? AppColors.blue;
+        return PickCard(
+          glowColor: glow,
+          padding: EdgeInsets.zero,
+          child: CheckboxListTile(
+            dense: true,
+            value: isOn,
+            title: Text(p.label),
+            subtitle: Text(
+              'Owned by ${p.teamAbbr}${p.teamAbbr != p.originalTeamAbbr ? ' • via ${p.originalTeamAbbr}' : ''}',
+            ),
+            onChanged: (v) {
+              setState(() {
+                if (v == true) {
+                  selected[key] = TradeAsset.pick(p);
+                } else {
+                  selected.remove(key);
+                }
+              });
+            },
           ),
-          onChanged: (v) {
-            setState(() {
-              if (v == true) {
-                selected[key] = TradeAsset.pick(p);
-              } else {
-                selected.remove(key);
-              }
-            });
-          },
         );
       }),
       const SizedBox(height: 10),
@@ -291,6 +303,7 @@ class _TradeSheetState extends State<TradeSheet> {
     required String title,
     required List<FuturePick> picks,
     required Map<String, TradeAsset> selected,
+    required Map<String, Color> teamColors,
   }) {
     return [
       Text(title, style: const TextStyle(color: Colors.white70)),
@@ -298,20 +311,25 @@ class _TradeSheetState extends State<TradeSheet> {
       ...picks.map((p) {
         final key = 'future:${p.teamAbbr}:${p.year}:${p.round}';
         final isOn = selected.containsKey(key);
-        return CheckboxListTile(
-          dense: true,
-          value: isOn,
-          title: Text('${p.year} Round ${p.round} (projected)'),
-          subtitle: Text('Owned by ${p.teamAbbr}'),
-          onChanged: (v) {
-            setState(() {
-              if (v == true) {
-                selected[key] = TradeAsset.future(p);
-              } else {
-                selected.remove(key);
-              }
-            });
-          },
+        final glow = teamColors[p.teamAbbr.toUpperCase()] ?? AppColors.blue;
+        return PickCard(
+          glowColor: glow,
+          padding: EdgeInsets.zero,
+          child: CheckboxListTile(
+            dense: true,
+            value: isOn,
+            title: Text('${p.year} Round ${p.round} (projected)'),
+            subtitle: Text('Owned by ${p.teamAbbr}'),
+            onChanged: (v) {
+              setState(() {
+                if (v == true) {
+                  selected[key] = TradeAsset.future(p);
+                } else {
+                  selected.remove(key);
+                }
+              });
+            },
+          ),
         );
       }),
       const SizedBox(height: 10),

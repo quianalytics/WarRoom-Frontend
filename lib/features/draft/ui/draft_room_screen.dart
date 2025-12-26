@@ -120,7 +120,12 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                ...offer.fromAssets.map((a) => Text('• ${_assetLabel(a)}')),
+                ...offer.fromAssets.map(
+                  (a) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _assetCard(a, teamColors),
+                  ),
+                ),
                 const SizedBox(height: 12),
                 Text(
                   'In exchange for ${offer.toTeam}',
@@ -133,7 +138,12 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                ...offer.toAssets.map((a) => Text('• ${_assetLabel(a)}')),
+                ...offer.toAssets.map(
+                  (a) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _assetCard(a, teamColors),
+                  ),
+                ),
               ],
             ),
           ),
@@ -163,6 +173,24 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     }
     final future = asset.futurePick!;
     return '${future.year} Round ${future.round} • ${future.teamAbbr}';
+  }
+
+  Widget _assetCard(TradeAsset asset, Map<String, Color> teamColors) {
+    final pick = asset.pick;
+    final teamAbbr =
+        pick?.teamAbbr.toUpperCase() ?? asset.futurePick!.teamAbbr.toUpperCase();
+    final glow = teamColors[teamAbbr] ?? AppColors.blue;
+    return PickCard(
+      glowColor: glow,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Text(
+        _assetLabel(asset),
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: AppColors.text,
+        ),
+      ),
+    );
   }
 
   Widget _tradeInboxButton(DraftState state) {
@@ -270,8 +298,12 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 6),
-                                  ...offer.fromAssets
-                                      .map((a) => Text('• ${_assetLabel(a)}')),
+                                  ...offer.fromAssets.map(
+                                    (a) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 6),
+                                      child: _assetCard(a, teamColors),
+                                    ),
+                                  ),
                                   const SizedBox(height: 10),
                                   Text(
                                     'In exchange for ${offer.toTeam}',
@@ -285,8 +317,12 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 6),
-                                  ...offer.toAssets
-                                      .map((a) => Text('• ${_assetLabel(a)}')),
+                                  ...offer.toAssets.map(
+                                    (a) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 6),
+                                      child: _assetCard(a, teamColors),
+                                    ),
+                                  ),
                                   const SizedBox(height: 10),
                                   Row(
                                     children: [
@@ -1200,7 +1236,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                                 children: [
                                   Text(
                                     prospect?.name ?? 'Pick ${pick.pickOverall}',
-                                    maxLines: 1,
+                                    maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       fontWeight: FontWeight.w800,
@@ -1212,7 +1248,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     '${pick.teamAbbr}  •  R${pick.round}.${pick.pickInRound.toString().padLeft(2, '0')}$via  •  $detail',
-                                    maxLines: 1,
+                                    maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(color: teamColor),
                                   ),
