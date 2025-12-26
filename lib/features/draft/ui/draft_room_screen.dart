@@ -137,6 +137,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
           ),
           actions: [
             TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Ignore'),
+            ),
+            OutlinedButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Decline'),
             ),
@@ -397,6 +401,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     final controller = ref.read(draftControllerProvider.notifier);
     _bindListeners();
     _maybeShowDraftCompletePrompt(state);
+    _maybePresentPendingTrade(state);
     _maybeShowTradeSnack(state);
 
     return Scaffold(
@@ -562,13 +567,32 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
     ref.listen<DraftState>(draftControllerProvider, (prev, next) {
       final offer = next.pendingTrade;
       if (offer == null) return;
-      final id = offer.id ??
-          '${offer.fromTeam}_${offer.toTeam}_${offer.fromAssets.length}_${offer.toAssets.length}';
-      if (_tradeDialogOpen || _lastTradeOfferId == id) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _presentTradeOffer(offer, next);
+      });
+    });
+  }
 
-      _lastTradeOfferId = id;
-      _tradeDialogOpen = true;
+  void _maybePresentPendingTrade(DraftState state) {
+    final offer = state.pendingTrade;
+    if (offer == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _presentTradeOffer(offer, state);
+    });
+  }
 
+  void _presentTradeOffer(TradeOffer offer, DraftState next) {
+    final id = offer.id ??
+        '${offer.fromTeam}_${offer.toTeam}_${offer.fromAssets.length}_${offer.toAssets.length}';
+    if (_tradeDialogOpen || _lastTradeOfferId == id) return;
+
+    _lastTradeOfferId = id;
+    _tradeDialogOpen = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       final controller = ref.read(draftControllerProvider.notifier);
       if (next.clockRunning) {
         _resumeAfterTradeDialog = true;
@@ -576,18 +600,19 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen> {
       } else {
         _resumeAfterTradeDialog = false;
       }
-
-      controller.clearPendingTrade();
-
-      Future.microtask(() async {
-        if (!mounted) return;
-        await _showTradeInboxSheet(context, next);
-        if (!mounted) return;
-        if (_resumeAfterTradeDialog && mounted) {
-          controller.resumeClock();
-        }
-        _tradeDialogOpen = false;
-      });
+      final accepted = await _showTradeOfferDialog(context, offer);
+      if (!mounted) return;
+      if (accepted == true) {
+        controller.acceptIncomingTrade(offer);
+      } else if (accepted == false) {
+        controller.declineTradeOffer(offer);
+      } else {
+        controller.clearPendingTrade();
+      }
+      if (_resumeAfterTradeDialog && mounted) {
+        controller.resumeClock();
+      }
+      _tradeDialogOpen = false;
     });
   }
 
