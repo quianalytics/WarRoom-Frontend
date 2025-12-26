@@ -12,7 +12,8 @@ and where changes should be made when adding features.
 - UI runs in Flutter with Material 3 theming.
 - Data is fetched from a local API (`http://localhost:3000`) via Dio.
 - Draft progress is stored in `SharedPreferences`.
-- Trade settings and recap state are in-memory only (not persisted).
+- Trade tuning settings and recap state are in-memory only (not persisted).
+- User settings (sound + haptics, trade popups) are persisted in `LocalStore`.
 - Draft recap supports sharing and saving a screenshot of the recap view.
 - Recap sharing uses platform plugins; unsupported platforms show a warning.
 
@@ -140,6 +141,7 @@ Parsing notes:
 - `LocalStore` (`lib/core/storage/local_store.dart`) stores draft state by year.
 - The persisted payload is the `DraftState` JSON plus pick results.
 - Trade inbox, trade log, and recap grades are not persisted.
+- `LocalStore` also persists user UX settings (sound + haptics, trade popups).
 
 ## Domain Model Notes
 - Models: `DraftPick`, `Prospect`, `Team`, `Trade`, `DraftState`.
@@ -158,7 +160,8 @@ Parsing notes:
   and trade tuning. Team labels are colored by team brand.
 - Draft recap: `lib/features/draft/ui/draft_recap_screen.dart` shows user picks
   with per-pick grades and an overall class grade, plus a trade history section
-  filtered by the selected team. The recap screen can share or save a screenshot.
+  filtered by the selected team. The recap screen can share or save a screenshot
+  and supports team scope + sorting controls.
 - Recap sharing saves to the system photo gallery on mobile and uses a temp file
   for sharing on supported platforms.
 - Draft room: `lib/features/draft/ui/draft_room_screen.dart` composes:
@@ -167,6 +170,7 @@ Parsing notes:
   - Recap/pick log
   - On-clock footer
 - Home screen includes About dialog and Contact Us webview.
+- Setup screen includes a Home icon in the app bar for quick navigation.
 - Widgets in `lib/features/draft/ui/widgets/` are feature-specific surfaces.
 - `TradeSheet` now supports multi-pick packages from both sides and future-year
   picks (next 2 drafts), shown side-by-side by team. The user can trade even when
@@ -175,23 +179,32 @@ Parsing notes:
   scrolls to the newest pick when in `All Teams` mode.
 - Trade offers are pruned when referenced picks pass or ownership changes, and
   stale offers are removed from the inbox/pending slots.
+- Trade Center uses a draggable bottom sheet with a scrollable layout to avoid
+  RenderBox layout issues on long inbox lists.
 - CPU trade ticker shows trade summaries in a marquee strip and now queues trades
-  so each trade gets a full scroll before the next begins.
+  so each trade gets a full scroll before the next begins. It uses a fade between
+  entries and starts its scroll with extra right-side lead-in space. The ticker
+  includes both CPU trades and user trades.
 - Setup includes a Sound + Haptics toggle persisted in `LocalStore`, and draft
   feedback respects the saved setting.
 - Setup includes a Trade popups toggle persisted in `LocalStore`; when disabled,
   offers skip modal popups but still appear in the Trade Center.
+- Trade popups toggle is also exposed mid-draft in the Trade Center settings.
 - Recap share/save applies a branded frame (title, watermark, badge stats) before
   exporting or saving the screenshot.
+- Recap screen includes a hero-style reveal (fade/slide) and grade stamp
+  animation for the summary header.
 - Team colors are used in multiple UI surfaces (draft recap, pick log filters,
   trade dialogs, trade inbox, and trade sheets).
 - Team colors are lightened when needed to keep text readable on dark surfaces.
 - Shared UI primitives: `lib/ui/panel.dart`, `lib/ui/icon_pill.dart`,
-  `lib/ui/pick_card.dart`, `lib/ui/war_room_background.dart`.
+  `lib/ui/pick_card.dart`, `lib/ui/war_room_background.dart`,
+  `lib/ui/section_frame.dart`, `lib/ui/staggered_reveal.dart`.
 - Pick cards use beveled edges and team-color glow across recap lists, prospect
   lists, and trade assets (trade inbox, trade dialog, and trade sheet lists).
 - Pick recap sidebar allows two-line text for better readability.
 - WarRoom background layer (grid + glow) wraps home, setup, draft room, and recap.
+- WarRoom background includes subtle parallax drift for cinematic motion.
 - Theme tokens: `lib/theme/app_theme.dart` (colors, radii, spacing).
 
 ## Error Handling

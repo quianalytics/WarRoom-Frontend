@@ -1319,6 +1319,9 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
       child: Text(
         (rank ?? 0) == 0 ? '-' : '$rank',
         textAlign: TextAlign.center,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.clip,
         style: const TextStyle(
           fontWeight: FontWeight.w800,
           color: AppColors.text,
