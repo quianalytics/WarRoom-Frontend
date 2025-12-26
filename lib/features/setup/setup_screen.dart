@@ -107,7 +107,16 @@ class _SetupScreenState extends State<SetupScreen> {
     final teamColors = _teamColorMap();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('WarRoom Draft Setup')),
+      appBar: AppBar(
+        title: const Text('WarRoom Draft Setup'),
+        actions: [
+          IconButton(
+            tooltip: 'Home',
+            onPressed: () => context.go('/'),
+            icon: const Icon(Icons.home),
+          ),
+        ],
+      ),
       body: WarRoomBackground(
         child: SafeArea(
           child: Padding(
@@ -240,59 +249,26 @@ class _SetupScreenState extends State<SetupScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Sound + Haptics',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      Switch(
-                        value: soundHapticsEnabled,
-                        onChanged: (v) async {
-                          setState(() => soundHapticsEnabled = v);
-                          await LocalStore.setSoundHapticsEnabled(v);
-                        },
-                      ),
-                    ],
-                  ),
+                _compactToggle(
+                  title: 'Sound + Haptics',
+                  value: soundHapticsEnabled,
+                  subtitle:
+                      'Soft click on picks + subtle rumble on trade offers.',
+                  onChanged: (v) async {
+                    setState(() => soundHapticsEnabled = v);
+                    await LocalStore.setSoundHapticsEnabled(v);
+                  },
                 ),
-                const Padding(
-                  padding: EdgeInsets.only(left: 8, right: 8, bottom: 8),
-                  child: Text(
-                    'Play a soft click on picks and a subtle rumble on trade offers.',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Trade Popups',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      Switch(
-                        value: tradePopupsEnabled,
-                        onChanged: (v) async {
-                          setState(() => tradePopupsEnabled = v);
-                          await LocalStore.setTradePopupsEnabled(v);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.only(left: 8, right: 8, bottom: 8),
-                  child: Text(
-                    'Show trade offers as popups. Offers always appear in Trade Center.',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
+                const SizedBox(height: 4),
+                _compactToggle(
+                  title: 'Trade Popups',
+                  value: tradePopupsEnabled,
+                  subtitle:
+                      'Show trade offers as popups (always in Trade Center).',
+                  onChanged: (v) async {
+                    setState(() => tradePopupsEnabled = v);
+                    await LocalStore.setTradePopupsEnabled(v);
+                  },
                 ),
                 const SizedBox(height: 8),
                 if (selected.isEmpty)
@@ -436,5 +412,53 @@ class _SetupScreenState extends State<SetupScreen> {
   Color _readableTeamColor(Color color) {
     if (color.computeLuminance() >= 0.45) return color;
     return Color.lerp(color, Colors.white, 0.4) ?? color;
+  }
+
+  Widget _compactToggle({
+    required String title,
+    required bool value,
+    required String subtitle,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: AppRadii.r12,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
   }
 }

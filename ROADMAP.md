@@ -42,3 +42,13 @@ Motion design pass: staggered list reveals, gentle shimmer on on‑clock pick, a
 Refined color language: lean into team colors but add a fixed neutral palette for readability (off‑white, slate, graphite) + controlled accent usage.
 Sound + haptics (optional): soft “pick made” click, subtle rumble on trade offer; keeps things engaging without being noisy.
 Recap share polish: auto‑layout the recap screenshot into a branded frame with watermark + draft stats badges.
+
+
+Draft intel layer: team needs heatmap + positional scarcity indicator so users see why a pick makes sense.
+Real‑time trade market: trade value meter that reacts to clock pressure and position runs; show win/lose delta.
+Live board context: “best available vs. team need” split, plus a contextual “likely pick” band for CPUs.
+Storytelling recap: grade by value + fit, and show “steals/reaches” summary with visual callouts.
+Scout profiles: add player comps, strengths/weaknesses, and scheme fit tags for decisions beyond rank.
+Pick simulator options: “aggressive trades,” “positional runs,” “GM traits,” and custom CPU archetypes.
+Shared highlights: auto‑generate a shareable recap image with badges (best pick, biggest steal, favorite team).
+Save & revisit: multi‑draft history and “resume from pick X” for iterating scenarios.

@@ -17,6 +17,7 @@ import '../../../ui/panel.dart';
 import '../../../ui/pick_card.dart';
 import '../../../ui/war_room_background.dart';
 import '../../../ui/staggered_reveal.dart';
+import '../../../ui/section_frame.dart';
 import '../../../theme/app_theme.dart';
 
 class DraftRoomScreen extends ConsumerStatefulWidget {
@@ -270,122 +271,152 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
             final current = ref.watch(draftControllerProvider);
             final controller = ref.read(draftControllerProvider.notifier);
             final teamColors = _teamColorMap(current);
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Trade Center',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 12),
-                    Panel(
-                      padding: const EdgeInsets.all(12),
-                      child: _tradeSettingsSection(controller),
-                    ),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Inbox (${current.tradeInbox.length})',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.85,
+              minChildSize: 0.6,
+              maxChildSize: 0.95,
+              builder: (context, scrollController) {
+                return SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: CustomScrollView(
+                      controller: scrollController,
+                      slivers: [
+                        const SliverToBoxAdapter(
+                          child: Text(
+                            'Trade Center',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (current.tradeInbox.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Text('No pending trade offers.'),
-                      )
-                    else
-                      Flexible(
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: current.tradeInbox.length,
-                          separatorBuilder: (_, __) =>
-                              const Divider(height: 16),
-                          itemBuilder: (context, i) {
-                            final offer = current.tradeInbox[i];
-                            return Panel(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${offer.fromTeam} offers',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: _readableTeamColor(
-                                        teamColors[
-                                                offer.fromTeam.toUpperCase()] ??
-                                            AppColors.text,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  ...offer.fromAssets.map(
-                                    (a) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 6),
-                                      child: _assetCard(a, teamColors),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    'In exchange for ${offer.toTeam}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: _readableTeamColor(
-                                        teamColors[
-                                                offer.toTeam.toUpperCase()] ??
-                                            AppColors.text,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  ...offer.toAssets.map(
-                                    (a) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 6),
-                                      child: _assetCard(a, teamColors),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: () {
-                                            controller.declineTradeOffer(offer);
-                                          },
-                                          child: const Text('Decline'),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Panel(
+                            padding: const EdgeInsets.all(12),
+                            child: _tradeSettingsSection(controller),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
+                            title: 'Trade Market',
+                            child: _tradeMarketSection(current),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionHeader(
+                            text: 'Inbox (${current.tradeInbox.length})',
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 8),
+                        ),
+                        if (current.tradeInbox.isEmpty)
+                          const SliverToBoxAdapter(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Text('No pending trade offers.'),
+                            ),
+                          )
+                        else
+                          SliverList.separated(
+                            itemCount: current.tradeInbox.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, i) {
+                              final offer = current.tradeInbox[i];
+                              return SectionFrame(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${offer.fromTeam} offers',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: _readableTeamColor(
+                                          teamColors[
+                                                  offer.fromTeam.toUpperCase()] ??
+                                              AppColors.text,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: FilledButton(
-                                          onPressed: () {
-                                            controller.acceptIncomingTrade(
-                                              offer,
-                                            );
-                                          },
-                                          child: const Text('Accept'),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    ...offer.fromAssets.map(
+                                      (a) => Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 6),
+                                        child: _assetCard(a, teamColors),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'In exchange for ${offer.toTeam}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: _readableTeamColor(
+                                          teamColors[
+                                                  offer.toTeam.toUpperCase()] ??
+                                              AppColors.text,
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
+                                    ),
+                                    const SizedBox(height: 6),
+                                    ...offer.toAssets.map(
+                                      (a) => Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 6),
+                                        child: _assetCard(a, teamColors),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton(
+                                            onPressed: () {
+                                              controller.declineTradeOffer(
+                                                offer,
+                                              );
+                                            },
+                                            child: const Text('Decline'),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: FilledButton(
+                                            onPressed: () {
+                                              controller.acceptIncomingTrade(
+                                                offer,
+                                              );
+                                            },
+                                            child: const Text('Accept'),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
                         ),
-                      ),
-                    const SizedBox(height: 12),
-                  ],
-                ),
-              ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             );
           },
         );
@@ -472,6 +503,90 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
           ],
         ),
       ],
+    );
+  }
+
+  Widget _tradeMarketSection(DraftState state) {
+    final run = _positionRun(state);
+    final nextPickGap = _nextUserPickGap(state);
+    final onClock = state.currentPick?.teamAbbr.toUpperCase() ?? '—';
+    final heat = _marketHeatLabel();
+    final heatColor = switch (heat) {
+      'Low' => AppColors.textMuted,
+      'Warm' => AppColors.blue.withOpacity(0.7),
+      'Hot' => AppColors.blue,
+      _ => AppColors.mint,
+    };
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _marketPill('Market: $heat', color: heatColor),
+        _marketPill('On clock: $onClock'),
+        _marketPill(
+          nextPickGap == null
+              ? 'Next user pick: —'
+              : 'Next user pick: +$nextPickGap',
+        ),
+        if (run != null) _marketPill(run),
+        _marketPill('Inbox: ${state.tradeInbox.length}'),
+      ],
+    );
+  }
+
+  String _marketHeatLabel() {
+    final score = (_tradeFrequency * 0.7) + ((0.2 - _tradeStrictness) * 0.3);
+    if (score < 0.25) return 'Low';
+    if (score < 0.55) return 'Warm';
+    if (score < 0.8) return 'Hot';
+    return 'Frenzy';
+  }
+
+  String? _positionRun(DraftState state) {
+    final recent = state.picksMade.reversed.take(6).toList();
+    if (recent.length < 4) return null;
+    final counts = <String, int>{};
+    for (final pr in recent) {
+      final pos = pr.prospect.position.toUpperCase();
+      counts[pos] = (counts[pos] ?? 0) + 1;
+    }
+    final top = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    if (top.isEmpty || top.first.value < 3) return null;
+    return 'Run: ${top.first.key} (${top.first.value}/${recent.length})';
+  }
+
+  int? _nextUserPickGap(DraftState state) {
+    if (state.userTeams.isEmpty || state.currentPick == null) return null;
+    final currentOverall = state.currentPick!.pickOverall;
+    var best = 999999;
+    for (var i = state.currentIndex; i < state.order.length; i++) {
+      final pick = state.order[i];
+      if (!state.userTeams.contains(pick.teamAbbr.toUpperCase())) continue;
+      best = pick.pickOverall;
+      break;
+    }
+    if (best == 999999) return null;
+    return best - currentOverall;
+  }
+
+  Widget _marketPill(String text, {Color? color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: color ?? AppColors.text,
+          fontSize: 12,
+        ),
+      ),
     );
   }
 
