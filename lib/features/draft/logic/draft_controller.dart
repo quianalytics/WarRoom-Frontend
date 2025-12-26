@@ -151,6 +151,7 @@ class DraftController extends StateNotifier<DraftState> {
       secondsRemaining: _currentClockSeconds(),
       clockRunning: true,
     );
+    _pruneExpiredTradeOffers();
 
     if (!state.isComplete) {
       _startClockForCurrentPick();
@@ -271,6 +272,15 @@ class DraftController extends StateNotifier<DraftState> {
   /// Trade: swap ownership of picks (MVP uses pick swaps only)
   /// You’ll call this from a UI trade sheet.
   bool proposeTrade(TradeOffer offer) {
+    _pruneExpiredTradeOffers();
+    if (!_offerStillValid(offer)) {
+      _removeFromInbox(offer);
+      if (state.pendingTrade?.id == offer.id) {
+        state = state.copyWith(pendingTrade: null);
+      }
+      _advancePendingTrade();
+      return false;
+    }
     final pick = _contextPickFor(offer) ?? state.currentPick;
     if (pick == null) return false;
 
@@ -285,6 +295,7 @@ class DraftController extends StateNotifier<DraftState> {
     if (!_trades.accept(offer, context: context)) return false;
 
     _applyTrade(offer, log: true);
+    _pruneExpiredTradeOffers();
     if (!state.isComplete) {
       state = state.copyWith(secondsRemaining: _currentClockSeconds());
       _startClockForCurrentPick();
@@ -314,6 +325,7 @@ class DraftController extends StateNotifier<DraftState> {
   void clearPendingTrade() {
     if (state.pendingTrade == null) return;
     state = state.copyWith(pendingTrade: null);
+    _pruneExpiredTradeOffers();
   }
 
   void declineTradeOffer(TradeOffer offer) {
@@ -322,6 +334,7 @@ class DraftController extends StateNotifier<DraftState> {
       state = state.copyWith(pendingTrade: null);
       _advancePendingTrade();
     }
+    _pruneExpiredTradeOffers();
   }
 
   void _applyTrade(TradeOffer offer, {bool log = false}) {
@@ -354,6 +367,7 @@ class DraftController extends StateNotifier<DraftState> {
 
     state = state.copyWith(order: updatedOrder);
     if (log) _recordTrade(offer);
+    _pruneExpiredTradeOffers();
   }
 
   void _queueTradeOffer(TradeOffer offer) {
@@ -388,6 +402,82 @@ class DraftController extends StateNotifier<DraftState> {
     if (state.pendingTrade != null) return;
     if (state.tradeInbox.isEmpty) return;
     state = state.copyWith(pendingTrade: state.tradeInbox.first);
+  }
+
+  bool _offerStillValid(TradeOffer offer) {
+    bool ownsPick(String teamAbbr, DraftPick pick) {
+      for (final p in state.order) {
+        if (_samePick(p, pick)) {
+          return p.teamAbbr.toUpperCase() == teamAbbr.toUpperCase();
+        }
+      }
+      return false;
+    }
+
+    for (final asset in offer.fromAssets) {
+      final pick = asset.pick;
+      if (pick == null) continue;
+      if (!_pickAvailable(pick)) return false;
+      if (!ownsPick(offer.fromTeam, pick)) return false;
+    }
+    for (final asset in offer.toAssets) {
+      final pick = asset.pick;
+      if (pick == null) continue;
+      if (!_pickAvailable(pick)) return false;
+      if (!ownsPick(offer.toTeam, pick)) return false;
+    }
+    return true;
+  }
+
+  bool _pickAvailable(DraftPick pick) {
+    if (pick.year != state.year) return true;
+    if (state.picksMade.any((made) => _samePick(made.pick, pick))) return false;
+    final currentPick = state.currentPick;
+    if (currentPick == null) return false;
+    return pick.pickOverall >= currentPick.pickOverall;
+  }
+
+  void _pruneExpiredTradeOffers() {
+    if (state.tradeInbox.isEmpty && state.pendingTrade == null) return;
+    final currentPick = state.currentPick;
+    if (currentPick == null) {
+      if (state.tradeInbox.isNotEmpty || state.pendingTrade != null) {
+        state = state.copyWith(tradeInbox: const <TradeOffer>[], pendingTrade: null);
+      }
+      return;
+    }
+
+    bool isExpiredPick(DraftPick pick) {
+      if (pick.year != state.year) return false;
+      if (pick.pickOverall < currentPick.pickOverall) return true;
+      return state.picksMade.any((made) => _samePick(made.pick, pick));
+    }
+
+    bool offerExpired(TradeOffer offer) {
+      if (!_offerStillValid(offer)) return true;
+      final assets = [...offer.fromAssets, ...offer.toAssets];
+      for (final asset in assets) {
+        final pick = asset.pick;
+        if (pick != null && isExpiredPick(pick)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    final filteredInbox =
+        state.tradeInbox.where((offer) => !offerExpired(offer)).toList();
+    TradeOffer? pending = state.pendingTrade;
+    if (pending != null && offerExpired(pending)) {
+      pending = null;
+    }
+    if (pending == null && filteredInbox.isNotEmpty) {
+      pending = filteredInbox.first;
+    }
+    if (filteredInbox.length != state.tradeInbox.length ||
+        pending?.id != state.pendingTrade?.id) {
+      state = state.copyWith(tradeInbox: filteredInbox, pendingTrade: pending);
+    }
   }
 
   DraftPick? _contextPickFor(TradeOffer offer) {
