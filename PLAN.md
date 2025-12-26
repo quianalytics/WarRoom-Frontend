@@ -14,6 +14,8 @@ and where changes should be made when adding features.
 - Draft progress is stored in `SharedPreferences`.
 - Trade tuning settings and recap state are in-memory only (not persisted).
 - User settings (sound + haptics, trade popups) are persisted in `LocalStore`.
+- Draft history entries are stored in `LocalStore`, including a draft name and
+  a resume point for multi-draft scenarios.
 - Draft recap supports sharing and saving a screenshot of the recap view.
 - Recap sharing uses platform plugins; unsupported platforms show a warning.
 
@@ -142,6 +144,8 @@ Parsing notes:
 - The persisted payload is the `DraftState` JSON plus pick results.
 - Trade inbox, trade log, and recap grades are not persisted.
 - `LocalStore` also persists user UX settings (sound + haptics, trade popups).
+- Draft history metadata is persisted separately for multi-draft resume; each
+  entry can be renamed or cleared.
 
 ## Domain Model Notes
 - Models: `DraftPick`, `Prospect`, `Team`, `Trade`, `DraftState`.
@@ -158,6 +162,8 @@ Parsing notes:
 - Setup flow: `lib/features/setup/setup_screen.dart` is a simple stateful view
   that prepares query params for the draft route, including CPU speed selection
   and trade tuning. Team labels are colored by team brand.
+- Setup includes a Saved Drafts action in the app bar that opens a bottom sheet
+  with history entries, resume-from-pick, rename, and clear actions.
 - Draft recap: `lib/features/draft/ui/draft_recap_screen.dart` shows user picks
   with per-pick grades and an overall class grade, plus a trade history section
   filtered by the selected team. The recap screen can share or save a screenshot

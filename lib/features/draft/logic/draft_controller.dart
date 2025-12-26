@@ -33,8 +33,13 @@ class DraftController extends StateNotifier<DraftState> {
 
   bool _runToNextUserPick = false;
 
-  int _currentClockSeconds() =>
-      state.isUserOnClock ? _speed.userClockSeconds : _speed.cpuClockSeconds;
+  int _currentClockSeconds() => _clockSecondsFor(state);
+
+  int _clockSecondsFor(DraftState draft) {
+    final onClockTeam = draft.currentPick?.teamAbbr ?? '--';
+    final isUser = draft.userTeams.contains(onClockTeam);
+    return isUser ? _speed.userClockSeconds : _speed.cpuClockSeconds;
+  }
 
   Future<void> start({
     required int year,
@@ -49,6 +54,7 @@ class DraftController extends StateNotifier<DraftState> {
     state = state.copyWith(
       loading: true,
       error: null,
+      draftId: _newDraftId(),
       year: year,
       userTeams: userTeams,
     );
@@ -214,17 +220,47 @@ class DraftController extends StateNotifier<DraftState> {
 
   DraftSpeedPreset get speedPreset => _speedPreset;
 
-  Future<void> resumeSavedDraft(int year) async {
+  Future<void> resumeSavedDraft(
+    int year, {
+    int? resumePick,
+  }) async {
     final saved = await LocalStore.loadDraft(year);
     if (saved == null) {
       state = state.copyWith(error: 'No saved draft found for $year');
       return;
     }
+    await _resumeFromJson(saved, resumePick: resumePick);
+  }
+
+  Future<void> resumeSavedDraftById(
+    String id, {
+    int? resumePick,
+  }) async {
+    final saved = await LocalStore.loadDraftHistoryDraft(id);
+    if (saved == null) {
+      state = state.copyWith(error: 'No saved draft found for $id');
+      return;
+    }
+    await _resumeFromJson(saved, resumePick: resumePick);
+  }
+
+  Future<void> _resumeFromJson(
+    Map<String, dynamic> saved, {
+    int? resumePick,
+  }) async {
     _clock.stop();
     _cpuTimer?.cancel();
     _cpuScheduledIndex = null;
 
-    state = DraftState.fromJson(saved);
+    var nextState = DraftState.fromJson(saved);
+    if (nextState.draftId.isEmpty) {
+      nextState = nextState.copyWith(draftId: _newDraftId());
+    }
+    if (resumePick != null && resumePick > 0) {
+      nextState = _rewindToPick(nextState, resumePick);
+    }
+    state = nextState;
+    await saveNow();
     _tradeScheduledIndex = null;
     // When resuming, restart clock for current pick
     _startClockForCurrentPick();
@@ -235,6 +271,19 @@ class DraftController extends StateNotifier<DraftState> {
   Future<void> saveNow() async {
     if (state.order.isEmpty) return;
     await LocalStore.saveDraft(state.year, state.toJson());
+    if (state.draftId.isNotEmpty) {
+      await LocalStore.saveDraftHistory(
+        DraftHistoryEntry(
+          id: state.draftId,
+          year: state.year,
+          updatedAt: DateTime.now(),
+          currentIndex: state.currentIndex,
+          totalPicks: state.order.length,
+          userTeams: state.userTeams,
+        ),
+        state.toJson(),
+      );
+    }
   }
 
   Future<void> clearSavedDraft(int year) async {
@@ -268,6 +317,47 @@ class DraftController extends StateNotifier<DraftState> {
 
   double get cpuTradeFrequency => _cpuTradeFrequency;
   double get cpuTradeStrictness => _cpuTradeStrictness;
+
+  String _newDraftId() =>
+      'draft_${DateTime.now().millisecondsSinceEpoch}_${_rng.nextInt(9999)}';
+
+  DraftState _rewindToPick(DraftState loaded, int resumePick) {
+    if (loaded.order.isEmpty) return loaded;
+    final clampedPick = resumePick < 1 ? 1 : resumePick;
+    final indexByOverall =
+        loaded.order.indexWhere((p) => p.pickOverall == clampedPick);
+    final resumeIndex = indexByOverall == -1
+        ? (clampedPick <= 1 ? 0 : loaded.order.length - 1)
+        : indexByOverall;
+    final resumeOverall = loaded.order[resumeIndex].pickOverall;
+
+    final keep = loaded.picksMade
+        .where((p) => p.pick.pickOverall < resumeOverall)
+        .toList();
+    final rollback = loaded.picksMade
+        .where((p) => p.pick.pickOverall >= resumeOverall)
+        .toList();
+
+    final boardById = {
+      for (final p in loaded.availableProspects) p.id: p,
+    };
+    for (final pr in rollback) {
+      boardById[pr.prospect.id] = pr.prospect;
+    }
+
+    final nextDraft = loaded.copyWith(
+      picksMade: keep,
+      availableProspects: boardById.values.toList(),
+      currentIndex: resumeIndex,
+      secondsRemaining: _clockSecondsFor(loaded.copyWith(
+        currentIndex: resumeIndex,
+        picksMade: keep,
+        availableProspects: boardById.values.toList(),
+      )),
+      clockRunning: true,
+    );
+    return nextDraft;
+  }
 
   /// Trade: swap ownership of picks (MVP uses pick swaps only)
   /// You’ll call this from a UI trade sheet.

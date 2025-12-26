@@ -29,6 +29,8 @@ class DraftRoomScreen extends ConsumerStatefulWidget {
     required this.speedPreset,
     required this.tradeFrequency,
     required this.tradeStrictness,
+    this.resumeId,
+    this.resumePick,
   });
 
   final int year;
@@ -37,6 +39,8 @@ class DraftRoomScreen extends ConsumerStatefulWidget {
   final DraftSpeedPreset speedPreset;
   final double tradeFrequency;
   final double tradeStrictness;
+  final String? resumeId;
+  final int? resumePick;
 
   @override
   ConsumerState<DraftRoomScreen> createState() => _DraftRoomScreenState();
@@ -94,7 +98,17 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
       );
 
       if (widget.resume) {
-        await controller.resumeSavedDraft(widget.year);
+        if (widget.resumeId != null && widget.resumeId!.isNotEmpty) {
+          await controller.resumeSavedDraftById(
+            widget.resumeId!,
+            resumePick: widget.resumePick,
+          );
+        } else {
+          await controller.resumeSavedDraft(
+            widget.year,
+            resumePick: widget.resumePick,
+          );
+        }
         controller.setSpeedPreset(widget.speedPreset);
       } else {
         controller.start(

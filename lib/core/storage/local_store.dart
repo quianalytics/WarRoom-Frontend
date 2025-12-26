@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalStore {
   static const _draftKeyPrefix = 'saved_draft_';
+  static const _draftHistoryPrefix = 'draft_history_';
+  static const _draftHistoryIndexKey = 'draft_history_index';
   static const _soundHapticsKey = 'sound_haptics_enabled';
   static const _tradePopupsKey = 'trade_popups_enabled';
 
@@ -11,11 +13,79 @@ class LocalStore {
     await prefs.setString('$_draftKeyPrefix$year', jsonEncode(json));
   }
 
+  static Future<void> saveDraftHistory(
+    DraftHistoryEntry entry,
+    Map<String, dynamic> json,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('$_draftHistoryPrefix${entry.id}', jsonEncode(json));
+
+    final current = await loadDraftHistory();
+    final previous = current.where((e) => e.id == entry.id).toList();
+    final resolved = previous.isNotEmpty
+        ? entry.copyWith(name: previous.first.name)
+        : entry;
+    final next = [
+      resolved,
+      ...current.where((e) => e.id != entry.id),
+    ];
+    await prefs.setString(
+      _draftHistoryIndexKey,
+      jsonEncode(next.map((e) => e.toJson()).toList()),
+    );
+  }
+
   static Future<Map<String, dynamic>?> loadDraft(int year) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('$_draftKeyPrefix$year');
     if (raw == null) return null;
     return jsonDecode(raw) as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>?> loadDraftHistoryDraft(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('$_draftHistoryPrefix$id');
+    if (raw == null) return null;
+    return jsonDecode(raw) as Map<String, dynamic>;
+  }
+
+  static Future<List<DraftHistoryEntry>> loadDraftHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_draftHistoryIndexKey);
+    if (raw == null) return [];
+    final decoded = jsonDecode(raw);
+    if (decoded is! List) return [];
+    return decoded
+        .whereType<Map>()
+        .map((e) => DraftHistoryEntry.fromJson(e.cast<String, dynamic>()))
+        .toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  }
+
+  static Future<void> renameDraftHistoryEntry({
+    required String id,
+    required String name,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final entries = await loadDraftHistory();
+    final next = entries
+        .map((e) => e.id == id ? e.copyWith(name: name) : e)
+        .toList();
+    await prefs.setString(
+      _draftHistoryIndexKey,
+      jsonEncode(next.map((e) => e.toJson()).toList()),
+    );
+  }
+
+  static Future<void> deleteDraftHistoryEntry(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('$_draftHistoryPrefix$id');
+    final entries = await loadDraftHistory();
+    final next = entries.where((e) => e.id != id).toList();
+    await prefs.setString(
+      _draftHistoryIndexKey,
+      jsonEncode(next.map((e) => e.toJson()).toList()),
+    );
   }
 
   static Future<void> clearDraft(int year) async {
@@ -46,5 +116,64 @@ class LocalStore {
   static Future<bool> getTradePopupsEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_tradePopupsKey) ?? true;
+  }
+}
+
+class DraftHistoryEntry {
+  final String id;
+  final int year;
+  final DateTime updatedAt;
+  final int currentIndex;
+  final int totalPicks;
+  final List<String> userTeams;
+  final String? name;
+
+  const DraftHistoryEntry({
+    required this.id,
+    required this.year,
+    required this.updatedAt,
+    required this.currentIndex,
+    required this.totalPicks,
+    required this.userTeams,
+    this.name,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'year': year,
+    'updatedAt': updatedAt.toIso8601String(),
+    'currentIndex': currentIndex,
+    'totalPicks': totalPicks,
+    'userTeams': userTeams,
+    'name': name,
+  };
+
+  static DraftHistoryEntry fromJson(Map<String, dynamic> json) =>
+      DraftHistoryEntry(
+        id: (json['id'] ?? '').toString(),
+        year: json['year'] as int,
+        updatedAt: DateTime.parse((json['updatedAt'] ?? '').toString()),
+        currentIndex: json['currentIndex'] as int,
+        totalPicks: json['totalPicks'] as int,
+        userTeams: (json['userTeams'] as List)
+            .map((e) => e.toString())
+            .toList(),
+        name: (json['name'] ?? '').toString().isEmpty
+            ? null
+            : (json['name'] ?? '').toString(),
+      );
+
+  DraftHistoryEntry copyWith({
+    String? name,
+  }) {
+    return DraftHistoryEntry(
+      id: id,
+      year: year,
+      updatedAt: updatedAt,
+      currentIndex: currentIndex,
+      totalPicks: totalPicks,
+      userTeams: userTeams,
+      name: name ?? this.name,
+    );
   }
 }

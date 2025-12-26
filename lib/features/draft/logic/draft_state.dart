@@ -40,6 +40,7 @@ class DraftState {
   final bool loading;
   final String? error;
 
+  final String draftId;
   final int year;
   final List<String> userTeams;
 
@@ -61,6 +62,7 @@ class DraftState {
   const DraftState({
     required this.loading,
     required this.error,
+    required this.draftId,
     required this.year,
     required this.userTeams,
     required this.teams,
@@ -79,6 +81,7 @@ class DraftState {
   factory DraftState.initial() => const DraftState(
     loading: false,
     error: null,
+    draftId: '',
     year: 2026,
     userTeams: [],
     teams: [],
@@ -95,6 +98,7 @@ class DraftState {
   );
   
   Map<String, dynamic> toJson() => {
+    'draftId': draftId,
     'year': year,
     'userTeams': userTeams,
     'teams': teams.map((t) => t.toJson()).toList(),
@@ -109,6 +113,7 @@ class DraftState {
   static DraftState fromJson(Map<String, dynamic> json) => DraftState(
     loading: false,
     error: null,
+    draftId: (json['draftId'] ?? '').toString(),
     year: json['year'] as int,
     userTeams: (json['userTeams'] as List).map((e) => e.toString()).toList(),
     teams: (json['teams'] as List)
@@ -143,6 +148,7 @@ class DraftState {
   DraftState copyWith({
     bool? loading,
     String? error,
+    String? draftId,
     int? year,
     List<String>? userTeams,
     List<Team>? teams,
@@ -160,6 +166,7 @@ class DraftState {
     return DraftState(
       loading: loading ?? this.loading,
       error: error,
+      draftId: draftId ?? this.draftId,
       year: year ?? this.year,
       userTeams: userTeams ?? this.userTeams,
       teams: teams ?? this.teams,

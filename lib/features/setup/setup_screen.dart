@@ -20,6 +20,8 @@ class _SetupScreenState extends State<SetupScreen> {
   String tradeStrictness = 'normal';
   bool soundHapticsEnabled = true;
   bool tradePopupsEnabled = true;
+  List<DraftHistoryEntry> _history = [];
+  bool _loadingHistory = true;
 
   // Temporary static list. Next step: load from /teams.
   final allTeams = const [
@@ -90,6 +92,7 @@ class _SetupScreenState extends State<SetupScreen> {
     super.initState();
     _refreshResume();
     _loadSettings();
+    _loadHistory();
   }
 
   Future<void> _loadSettings() async {
@@ -102,6 +105,15 @@ class _SetupScreenState extends State<SetupScreen> {
     });
   }
 
+  Future<void> _loadHistory() async {
+    final entries = await LocalStore.loadDraftHistory();
+    if (!mounted) return;
+    setState(() {
+      _history = entries;
+      _loadingHistory = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final teamColors = _teamColorMap();
@@ -111,6 +123,11 @@ class _SetupScreenState extends State<SetupScreen> {
         title: const Text('WarRoom Draft Setup'),
         actions: [
           IconButton(
+            tooltip: 'Saved Drafts',
+            onPressed: () => _showHistorySheet(context),
+            icon: const Icon(Icons.history),
+          ),
+          IconButton(
             tooltip: 'Home',
             onPressed: () => context.go('/'),
             icon: const Icon(Icons.home),
@@ -119,11 +136,9 @@ class _SetupScreenState extends State<SetupScreen> {
       ),
       body: WarRoomBackground(
         child: SafeArea(
-          child: Padding(
+          child: ListView(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            children: [
                 Row(
                   children: [
                     const Text('Draft Year:'),
@@ -217,7 +232,8 @@ class _SetupScreenState extends State<SetupScreen> {
                 const SizedBox(height: 12),
                 const Text('Teams you control (select 1+):'),
                 const SizedBox(height: 8),
-                Expanded(
+                SizedBox(
+                  height: 280,
                   child: ListView.builder(
                     itemCount: allTeams.length,
                     itemBuilder: (context, i) {
@@ -271,6 +287,7 @@ class _SetupScreenState extends State<SetupScreen> {
                   },
                 ),
                 const SizedBox(height: 8),
+                const SizedBox(height: 8),
                 if (selected.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(bottom: 8),
@@ -312,8 +329,10 @@ class _SetupScreenState extends State<SetupScreen> {
                             await LocalStore.setTradePopupsEnabled(
                               tradePopupsEnabled,
                             );
+                            final resumePick =
+                                await _promptResumePick(context);
                             context.go(
-                              '/draft?year=$year&teams=${(selected.toList()..sort()).join(',')}&resume=1&speed=${speedPreset.name}&tradeFreq=$tradeFrequency&tradeStrict=$tradeStrictness',
+                              '/draft?year=$year&teams=${(selected.toList()..sort()).join(',')}&resume=1&speed=${speedPreset.name}&tradeFreq=$tradeFrequency&tradeStrict=$tradeStrictness${resumePick == null ? '' : '&resumePick=$resumePick'}',
                             );
                           }
                         : null,
@@ -321,11 +340,281 @@ class _SetupScreenState extends State<SetupScreen> {
                   ),
                 ),
               ],
-            ),
           ),
         ),
       ),
     );
+  }
+
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  Future<int?> _promptResumePick(BuildContext context) async {
+    final controller = TextEditingController();
+    final result = await showDialog<int?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Resume from pick'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Pick number (optional)',
+            hintText: 'Leave blank to resume latest',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Resume Latest'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final raw = controller.text.trim();
+              final value = raw.isEmpty ? null : int.tryParse(raw);
+              Navigator.pop(ctx, value);
+            },
+            child: const Text('Resume'),
+          ),
+        ],
+      ),
+    );
+    return result;
+  }
+
+  Future<void> _showHistorySheet(BuildContext context) async {
+    if (_loadingHistory) {
+      await _loadHistory();
+    }
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        if (_loadingHistory) {
+          return const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (_history.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('No saved drafts yet.'),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Saved Drafts',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 420),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _history.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, i) {
+                    final entry = _history[i];
+                    final progress =
+                        'Pick ${entry.currentIndex + 1}/${entry.totalPicks}';
+                    final teamsLabel = entry.userTeams.isEmpty
+                        ? 'No user teams'
+                        : entry.userTeams.join(', ');
+                    final title = entry.name?.trim().isNotEmpty == true
+                        ? entry.name!
+                        : 'Year ${entry.year}';
+                    return Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface2,
+                        borderRadius: AppRadii.r12,
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$title • $progress',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  teamsLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.textMuted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Updated ${_formatTime(entry.updatedAt)}',
+                                  style: const TextStyle(
+                                    color: AppColors.textMuted,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.tonal(
+                            onPressed: () async {
+                              if (!await _guardYearAvailability()) return;
+                              final resumePick =
+                                  await _promptResumePick(context);
+                              final params = [
+                                'resumeId=${entry.id}',
+                                'year=${entry.year}',
+                                'speed=${speedPreset.name}',
+                                'tradeFreq=$tradeFrequency',
+                                'tradeStrict=$tradeStrictness',
+                              ];
+                              if (resumePick != null) {
+                                params.add('resumePick=$resumePick');
+                              }
+                              if (!context.mounted) return;
+                              context.go('/draft?${params.join('&')}');
+                            },
+                            child: const Text('Resume'),
+                          ),
+                          const SizedBox(width: 6),
+                          PopupMenuButton<String>(
+                            tooltip: 'Manage',
+                            onSelected: (value) async {
+                              if (value == 'rename') {
+                                final name =
+                                    await _promptRename(context, entry);
+                                if (name == null) return;
+                                await LocalStore.renameDraftHistoryEntry(
+                                  id: entry.id,
+                                  name: name,
+                                );
+                                await _loadHistory();
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                  await _showHistorySheet(context);
+                                }
+                              } else if (value == 'clear') {
+                                final ok = await _confirmClear(
+                                  context,
+                                  entry,
+                                );
+                                if (!ok) return;
+                                await LocalStore.deleteDraftHistoryEntry(
+                                  entry.id,
+                                );
+                                await _loadHistory();
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                  await _showHistorySheet(context);
+                                }
+                              }
+                            },
+                            itemBuilder: (context) => const [
+                              PopupMenuItem(
+                                value: 'rename',
+                                child: Text('Rename'),
+                              ),
+                              PopupMenuItem(
+                                value: 'clear',
+                                child: Text('Clear Entry'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<String?> _promptRename(
+    BuildContext context,
+    DraftHistoryEntry entry,
+  ) async {
+    final controller = TextEditingController(text: entry.name ?? '');
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rename draft'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Draft name',
+            hintText: 'Ex: Trade-up run',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              Navigator.pop(ctx, value.isEmpty ? null : value);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    return result;
+  }
+
+  Future<bool> _confirmClear(
+    BuildContext context,
+    DraftHistoryEntry entry,
+  ) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear history entry?'),
+        content: const Text(
+          'This removes the saved history entry. The active resume slot for the '
+          'year will remain.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   Map<String, Color> _teamColorMap() {

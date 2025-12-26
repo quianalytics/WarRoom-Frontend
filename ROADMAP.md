@@ -8,6 +8,7 @@
 
 ## Phase 2: Depth + Retention (2–4 weeks)
 - Persistence upgrades: save full draft history and settings; “resume from pick N”.
+- Save & revisit: multi-draft history and “resume from pick X” for iterating scenarios.
 - Analytics layer: reach/steal indicator, alternate pick outcomes, and value delta.
 - Recap expansion: team summaries, best value picks, and shareable cards.
 

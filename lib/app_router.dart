@@ -27,7 +27,10 @@ final appRouter = GoRouter(
       builder: (_, state) {
         final year = int.parse(state.uri.queryParameters['year'] ?? '2026');
         final teams = (state.uri.queryParameters['teams'] ?? '').split(',').where((s) => s.isNotEmpty).toList();
-        final resume = state.uri.queryParameters['resume'] == '1';
+        final resumeId = state.uri.queryParameters['resumeId'];
+        final resumePickRaw = state.uri.queryParameters['resumePick'];
+        final resumePick = resumePickRaw == null ? null : int.tryParse(resumePickRaw);
+        final resume = state.uri.queryParameters['resume'] == '1' || resumeId != null;
         final speedRaw = state.uri.queryParameters['speed'] ?? 'fast';
         final speed = DraftSpeedPreset.values.firstWhere(
           (s) => s.name == speedRaw,
@@ -53,6 +56,8 @@ final appRouter = GoRouter(
           speedPreset: speed,
           tradeFrequency: tradeFreq,
           tradeStrictness: tradeStrict,
+          resumeId: resumeId,
+          resumePick: resumePick,
         );
       },
     ),
