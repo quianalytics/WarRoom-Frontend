@@ -7,6 +7,8 @@ class LocalStore {
   static const _draftHistoryIndexKey = 'draft_history_index';
   static const _soundHapticsKey = 'sound_haptics_enabled';
   static const _tradePopupsKey = 'trade_popups_enabled';
+  static const _lastActiveDateKey = 'last_active_date';
+  static const _draftStreakKey = 'draft_streak_count';
 
   static Future<void> saveDraft(int year, Map<String, dynamic> json) async {
     final prefs = await SharedPreferences.getInstance();
@@ -117,6 +119,30 @@ class LocalStore {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_tradePopupsKey) ?? true;
   }
+
+  static Future<int> getDraftStreak() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_draftStreakKey) ?? 0;
+  }
+
+  static Future<int> updateDraftStreak() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayKey = _dayKey(now);
+    final lastKey = prefs.getString(_lastActiveDateKey);
+    if (lastKey == todayKey) {
+      return prefs.getInt(_draftStreakKey) ?? 0;
+    }
+    final streak = prefs.getInt(_draftStreakKey) ?? 0;
+    final yesterdayKey = _dayKey(now.subtract(const Duration(days: 1)));
+    final nextStreak = lastKey == yesterdayKey ? streak + 1 : 1;
+    await prefs.setString(_lastActiveDateKey, todayKey);
+    await prefs.setInt(_draftStreakKey, nextStreak);
+    return nextStreak;
+  }
+
+  static String _dayKey(DateTime date) =>
+      '${date.year}-${date.month}-${date.day}';
 }
 
 class DraftHistoryEntry {

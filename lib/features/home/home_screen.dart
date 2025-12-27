@@ -4,14 +4,40 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../../theme/app_theme.dart';
 import '../../ui/panel.dart';
 import '../../ui/war_room_background.dart';
+import '../../core/storage/local_store.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _streak = 0;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStreak();
+  }
+
+  Future<void> _loadStreak() async {
+    final streak = await LocalStore.updateDraftStreak();
+    if (!mounted) return;
+    setState(() {
+      _streak = streak;
+      _loaded = true;
+    });
+  }
 
   static const String _contactUrl = 'https://forms.gle/your-form-id';
 
   @override
   Widget build(BuildContext context) {
+    final challenge = _dailyChallengeText();
+    final badges = _streakBadges(_streak);
     return Scaffold(
       body: WarRoomBackground(
         child: SafeArea(
@@ -36,6 +62,77 @@ class HomeScreen extends StatelessWidget {
                       const Text(
                         'Dominate the draft.',
                         style: TextStyle(color: AppColors.textMuted),
+                      ),
+                      const SizedBox(height: 12),
+                      Panel(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Daily Challenge',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              challenge,
+                              style: const TextStyle(
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Text(
+                                  _loaded
+                                      ? 'Draft streak: $_streak day${_streak == 1 ? '' : 's'}'
+                                      : 'Draft streak: …',
+                                  style: const TextStyle(
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                if (badges.isNotEmpty)
+                                  Expanded(
+                                    child: Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      alignment: WrapAlignment.end,
+                                      children: badges
+                                          .map(
+                                            (b) => Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.surface2,
+                                                borderRadius:
+                                                    BorderRadius.circular(999),
+                                                border: Border.all(
+                                                  color: AppColors.border,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                b,
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
@@ -99,6 +196,31 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _dailyChallengeText() {
+    final challenges = [
+      'No trades allowed. Can you still land your top target?',
+      'Make at least 1 trade up and 1 trade down.',
+      'Draft two players from the same conference.',
+      'Hold your first pick and still secure a top-10 talent.',
+      'Target a trench pick in Round 1.',
+      'Find a “steal”: draft a player ranked 10+ spots higher.',
+      'Draft for need: pick a top-3 team need in your first 2 rounds.',
+    ];
+    final now = DateTime.now();
+    final start = DateTime(now.year, 1, 1);
+    final dayOfYear = now.difference(start).inDays + 1;
+    return challenges[dayOfYear % challenges.length];
+  }
+
+  List<String> _streakBadges(int streak) {
+    final badges = <String>[];
+    if (streak >= 3) badges.add('3-Day');
+    if (streak >= 7) badges.add('1-Week');
+    if (streak >= 14) badges.add('2-Week');
+    if (streak >= 30) badges.add('30-Day');
+    return badges;
   }
 }
 

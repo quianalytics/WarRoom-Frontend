@@ -76,6 +76,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
   int _lastPickSoundCount = 0;
   bool _soundHapticsEnabled = true;
   bool _tradePopupsEnabled = true;
+  final Set<String> _tradeBaitIds = {};
 
   @override
   void initState() {
@@ -344,8 +345,26 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                         ),
                         SliverToBoxAdapter(
                           child: SectionFrame(
+                            title: 'Run Predictor',
+                            child: _runPredictorSection(current),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
                             title: 'Draft Board Optimizer',
                             child: _draftBoardOptimizerSection(current),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
+                            title: 'Trade Bait',
+                            child: _tradeBaitSection(current),
                           ),
                         ),
                         const SliverToBoxAdapter(
@@ -817,6 +836,65 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     );
   }
 
+  Widget _runPredictorSection(DraftState state) {
+    final recent = state.picksMade.reversed.take(6).toList();
+    if (recent.length < 3) {
+      return const Text('Not enough picks yet to detect runs.');
+    }
+    final counts = <String, int>{};
+    for (final pr in recent) {
+      final pos = pr.prospect.position.toUpperCase();
+      counts[pos] = (counts[pos] ?? 0) + 1;
+    }
+    final entries = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final hottest = entries.first;
+    final confidence = (hottest.value / recent.length).clamp(0.2, 1.0);
+    final hotLabel = hottest.value >= 3
+        ? 'Hot: ${hottest.key} (${hottest.value}/${recent.length})'
+        : 'No strong run detected';
+
+    final needs = state.userTeams
+        .map((abbr) => _teamByAbbr(state, abbr))
+        .whereType<Team>()
+        .expand((t) => t.needs ?? const <String>[])
+        .map((n) => n.toUpperCase())
+        .toList();
+    final needMatches = needs.toSet();
+    final warning = needMatches.contains(hottest.key) && hottest.value >= 3
+        ? 'Watch out: your needs overlap with the hottest run.'
+        : 'Runs look stable for your needs.';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _marketPill(hotLabel),
+        const SizedBox(height: 8),
+        Text(
+          warning,
+          style: const TextStyle(color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: LinearProgressIndicator(
+                value: confidence,
+                minHeight: 8,
+                backgroundColor: AppColors.surface2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  hottest.value >= 3 ? AppColors.blue : AppColors.textMuted,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text('${(confidence * 100).round()}%'),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _draftBoardOptimizerSection(DraftState state) {
     final pick = _nextUserPick(state);
     if (pick == null) {
@@ -893,6 +971,41 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
         Text(
           detail,
           style: const TextStyle(color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+
+  Widget _tradeBaitSection(DraftState state) {
+    if (_tradeBaitIds.isEmpty) {
+      return const Text('No trade bait selected yet.');
+    }
+    final byId = {
+      for (final p in state.availableProspects) p.id: p,
+    };
+    final picks = _tradeBaitIds
+        .map((id) => byId[id])
+        .whereType<Prospect>()
+        .toList()
+      ..sort((a, b) {
+        final ar = a.rank ?? 999999;
+        final br = b.rank ?? 999999;
+        return ar.compareTo(br);
+      });
+    if (picks.isEmpty) {
+      return const Text('Trade bait left the board.');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...picks.take(5).map(
+          (p) => Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              '• ${p.name} (${p.position})${p.rank == null ? '' : ' • #${p.rank}'}',
+              style: const TextStyle(color: AppColors.textMuted),
+            ),
+          ),
         ),
       ],
     );
@@ -1977,57 +2090,60 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
 
                   return StaggeredReveal(
                     index: i,
-                    child: PickCard(
-                      glowColor: AppColors.blue,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    _rankPill(p.rank),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        p.name,
-                                        maxLines: isNarrow ? 2 : 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.text,
+                    child: _tradeBaitSwipe(
+                      p,
+                      child: PickCard(
+                        glowColor: AppColors.blue,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      _rankPill(p.rank),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          p.name,
+                                          maxLines: isNarrow ? 2 : 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.text,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    if (!isNarrow) ...[
-                                      const SizedBox(width: 8),
-                                      _posPill(p.position),
+                                      if (!isNarrow) ...[
+                                        const SizedBox(width: 8),
+                                        _posPill(p.position),
+                                      ],
                                     ],
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  subtitle,
-                                  maxLines: isNarrow ? 2 : 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: AppColors.textMuted,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    subtitle,
+                                    maxLines: isNarrow ? 2 : 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          if (action != null) ...[
-                            const SizedBox(width: 10),
-                            action,
+                            if (action != null) ...[
+                              const SizedBox(width: 10),
+                              action,
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   );
@@ -2060,6 +2176,44 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
           color: AppColors.text,
         ),
       ),
+    );
+  }
+
+  Widget _tradeBaitSwipe(Prospect prospect, {required Widget child}) {
+    final isBait = _tradeBaitIds.contains(prospect.id);
+    return Dismissible(
+      key: ValueKey('bait-${prospect.id}'),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        setState(() {
+          if (isBait) {
+            _tradeBaitIds.remove(prospect.id);
+          } else {
+            _tradeBaitIds.add(prospect.id);
+          }
+        });
+        return false;
+      },
+      background: Container(),
+      secondaryBackground: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: isBait ? AppColors.blue.withOpacity(0.25) : AppColors.surface2,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isBait ? AppColors.blue : AppColors.border,
+          ),
+        ),
+        child: Text(
+          isBait ? 'Unmark Trade Bait' : 'Mark as Trade Bait',
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: AppColors.text,
+          ),
+        ),
+      ),
+      child: child,
     );
   }
 
