@@ -2894,88 +2894,122 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     final canTrade = !state.isComplete && state.currentPick != null;
     final canRun = !state.isUserOnClock && !state.isComplete;
 
-    return Row(
-      children: [
-        Expanded(
-          child: state.isComplete
-              ? const Text(
-                  'Draft complete',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: AppColors.textMuted),
-                )
-              : RichText(
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  text: TextSpan(
-                    style: const TextStyle(color: AppColors.textMuted),
-                    children: [
-                      const TextSpan(text: 'On the clock: '),
-                      TextSpan(
-                        text: state.onClockTeam,
-                        style: TextStyle(
-                          color: _readableTeamColor(
-                            teamColors[state.onClockTeam] ?? AppColors.text,
-                          ),
-                          fontWeight: FontWeight.w800,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 520;
+        final onClockText = state.isComplete
+            ? const Text(
+                'Draft complete',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: AppColors.textMuted),
+              )
+            : RichText(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  style: const TextStyle(color: AppColors.textMuted),
+                  children: [
+                    const TextSpan(text: 'On the clock: '),
+                    TextSpan(
+                      text: state.onClockTeam,
+                      style: TextStyle(
+                        color: _readableTeamColor(
+                          teamColors[state.onClockTeam] ?? AppColors.text,
                         ),
+                        fontWeight: FontWeight.w800,
                       ),
-                      TextSpan(
-                        text: ' • ${state.currentPick?.label}',
-                      ),
-                    ],
+                    ),
+                    TextSpan(
+                      text: ' • ${state.currentPick?.label}',
+                    ),
+                  ],
+                ),
+              );
+
+        final actions = <Widget>[
+          if (canRun)
+            OutlinedButton(
+              onPressed: () => controller.autoPick(),
+              child: const Text('Force CPU Pick'),
+            ),
+          if (canTrade)
+            FilledButton(
+              onPressed: () async {
+                final result = await showModalBottomSheet<TradeSheetResult>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => TradeSheet(
+                    state: state,
+                    userTeams: widget.controlledTeams,
+                  ),
+                );
+                if (result == null) return;
+
+                final pick = state.currentPick!;
+                final offer = TradeOffer(
+                  fromTeam: result.partnerTeam,
+                  toTeam: result.userTeam,
+                  fromAssets: result.partnerAssets,
+                  toAssets: result.userAssets,
+                );
+
+                final ok = controller.proposeTrade(offer);
+                if (!context.mounted) return;
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(ok ? 'Trade accepted' : 'Trade rejected'),
+                  ),
+                );
+              },
+              child: const Text('Trade'),
+            ),
+        ];
+
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: onClockText,
+              ),
+              if (actions.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: actions,
                   ),
                 ),
-        ),
-        const SizedBox(width: 8),
-        // if (canRun)
-        //   FilledButton(
-        //     onPressed: () => controller.runToNextUserPick(),
-        //     child: const Text('Run to My Next Pick'),
-        //   ),
-        if (canRun) const SizedBox(width: 8),
-        if (canRun)
-          OutlinedButton(
-            onPressed: () => controller.autoPick(),
-            child: const Text('Force CPU Pick'),
-          ),
-        if (canTrade) ...[
-          const SizedBox(width: 8),
-          FilledButton(
-            onPressed: () async {
-              final result = await showModalBottomSheet<TradeSheetResult>(
-                context: context,
-                isScrollControlled: true,
-                builder: (_) =>
-                    TradeSheet(
-                      state: state,
-                      userTeams: widget.controlledTeams,
-                    ),
-              );
-              if (result == null) return;
+              ],
+            ],
+          );
+        }
 
-              final pick = state.currentPick!;
-              final offer = TradeOffer(
-                fromTeam: result.partnerTeam,
-                toTeam: result.userTeam,
-                fromAssets: result.partnerAssets,
-                toAssets: result.userAssets,
-              );
-
-              final ok = controller.proposeTrade(offer);
-              if (!context.mounted) return;
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(ok ? 'Trade accepted' : 'Trade rejected'),
-                ),
-              );
-            },
-            child: const Text('Trade'),
-          ),
-        ],
-      ],
+        return Row(
+          children: [
+            Expanded(child: onClockText),
+            if (actions.isNotEmpty) const SizedBox(width: 8),
+            ..._withGaps(actions, 8),
+          ],
+        );
+      },
     );
+  }
+
+  List<Widget> _withGaps(List<Widget> widgets, double gap) {
+    if (widgets.isEmpty) return const [];
+    final spaced = <Widget>[];
+    for (var i = 0; i < widgets.length; i += 1) {
+      if (i > 0) spaced.add(SizedBox(width: gap));
+      spaced.add(widgets[i]);
+    }
+    return spaced;
   }
 }
 
