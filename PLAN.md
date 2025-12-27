@@ -18,6 +18,7 @@ and where changes should be made when adding features.
   a resume point for multi-draft scenarios.
 - Draft recap supports sharing and saving a screenshot of the recap view.
 - Recap sharing uses platform plugins; unsupported platforms show a warning.
+- Draft HQ provides a centralized analytics sheet in the draft room.
 
 ## Project Layout (Primary Areas)
 - App shell: `lib/main.dart`, `lib/app_router.dart`, `lib/theme/app_theme.dart`.
@@ -87,6 +88,7 @@ and where changes should be made when adding features.
 ## Data Access
 - `DraftRepository` (`lib/features/draft/data/draft_repository.dart`) wraps `Dio`:
   - `GET /teams`
+  - `GET /teams/needs/:year`
   - `GET /draft/:year/picks`
   - `GET /prospects`
 - `ApiClient` (`lib/core/api/api_client.dart`) centralizes base URL and timeouts.
@@ -155,6 +157,7 @@ Parsing notes:
   inconsistent backend typing.
 - `DraftState` now tracks `pendingTrade`, `tradeInbox`, and `tradeLog` for
   automated trade flows and recap display.
+- `TradeLogEntry` stores full trade assets for analytics.
 
 ## UI Architecture
 - Home screen: `lib/features/home/home_screen.dart` is a lightweight entry point
@@ -175,6 +178,8 @@ Parsing notes:
   - Big board list
   - Recap/pick log
   - On-clock footer
+- Draft HQ lives in the draft room app bar and shows analytics for user teams:
+  needs, BPA vs need meter, reach/steal alerts, trade value deltas, and next pick.
 - Home screen includes About dialog and Contact Us webview.
 - Setup screen includes a Home icon in the app bar for quick navigation.
 - Widgets in `lib/features/draft/ui/widgets/` are feature-specific surfaces.
@@ -187,10 +192,13 @@ Parsing notes:
   stale offers are removed from the inbox/pending slots.
 - Trade Center uses a draggable bottom sheet with a scrollable layout to avoid
   RenderBox layout issues on long inbox lists.
+- Draft HQ uses a similar draggable bottom sheet layout.
 - CPU trade ticker shows trade summaries in a marquee strip and now queues trades
   so each trade gets a full scroll before the next begins. It uses a fade between
   entries and starts its scroll with extra right-side lead-in space. The ticker
   includes both CPU trades and user trades.
+- Draft room polish includes round transition banners, pick chimes, on-clock
+  haptics, and a shimmer on the top prospect.
 - Setup includes a Sound + Haptics toggle persisted in `LocalStore`, and draft
   feedback respects the saved setting.
 - Setup includes a Trade popups toggle persisted in `LocalStore`; when disabled,
@@ -203,6 +211,8 @@ Parsing notes:
 - Team colors are used in multiple UI surfaces (draft recap, pick log filters,
   trade dialogs, trade inbox, and trade sheets).
 - Team colors are lightened when needed to keep text readable on dark surfaces.
+- Team needs are fetched from `/teams/needs/:year` and merged into teams at
+  startup by abbreviation.
 - Shared UI primitives: `lib/ui/panel.dart`, `lib/ui/icon_pill.dart`,
   `lib/ui/pick_card.dart`, `lib/ui/war_room_background.dart`,
   `lib/ui/section_frame.dart`, `lib/ui/staggered_reveal.dart`.
