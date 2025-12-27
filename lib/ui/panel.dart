@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
@@ -31,6 +32,14 @@ class Panel extends StatelessWidget {
         ),
         child: Stack(
           children: [
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(color: AppColors.glass),
+                ),
+              ),
+            ),
             const Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(gradient: AppGradients.panelSheen),

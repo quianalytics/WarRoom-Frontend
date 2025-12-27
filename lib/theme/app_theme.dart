@@ -15,6 +15,8 @@ class AppColors {
 
   static const text = Color(0xFFF2F7FF);
   static const textMuted = Color(0xFF9CB0CB);
+
+  static const glass = Color(0x220B1120);
 }
 
 class AppGradients {
@@ -86,4 +88,8 @@ class AppSpacing {
   static const s12 = 12.0;
   static const s16 = 16.0;
   static const s20 = 20.0;
+}
+
+class AppMotion {
+  static const Curve revealCurve = Curves.easeOutCubic;
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class StaggeredReveal extends StatefulWidget {
   const StaggeredReveal({
@@ -47,11 +48,11 @@ class _StaggeredRevealState extends State<StaggeredReveal> {
   Widget build(BuildContext context) {
     return AnimatedOpacity(
       duration: widget.duration,
-      curve: Curves.easeOut,
+      curve: AppMotion.revealCurve,
       opacity: _visible ? 1 : 0,
       child: AnimatedSlide(
         duration: widget.duration,
-        curve: Curves.easeOut,
+        curve: AppMotion.revealCurve,
         offset: _visible ? Offset.zero : const Offset(0, 0.06),
         child: widget.child,
       ),

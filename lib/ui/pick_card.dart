@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
@@ -17,7 +18,6 @@ class PickCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final glow = glowColor ?? AppColors.blue;
     return Container(
-      padding: padding,
       decoration: ShapeDecoration(
         gradient: const LinearGradient(
           colors: [
@@ -44,7 +44,29 @@ class PickCard extends StatelessWidget {
           ),
         ],
       ),
-      child: child,
+      child: ClipPath(
+        clipper: const ShapeBorderClipper(
+          shape: BeveledRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(color: AppColors.glass),
+                ),
+              ),
+            ),
+            Padding(
+              padding: padding,
+              child: child,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
