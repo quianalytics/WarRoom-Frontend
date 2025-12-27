@@ -61,12 +61,19 @@ class DraftController extends StateNotifier<DraftState> {
 
     try {
       final teams = await _repo.fetchTeams();
+      Map<String, List<String>> needsByAbbr = {};
+      try {
+        needsByAbbr = await _repo.fetchTeamNeeds(year);
+      } catch (_) {
+        needsByAbbr = {};
+      }
       final order = await _repo.fetchDraftOrder(year);
       final prospects = await _repo.fetchProspects(year);
+      final mergedTeams = _mergeTeamNeeds(teams, needsByAbbr);
 
       state = state.copyWith(
         loading: false,
-        teams: teams,
+        teams: mergedTeams,
         order: order..sort((a, b) => a.pickOverall.compareTo(b.pickOverall)),
         availableProspects: prospects,
         picksMade: [],
@@ -90,6 +97,29 @@ class DraftController extends StateNotifier<DraftState> {
         error: 'Unable to load draft data. Check your connection and try again.',
       );
     }
+  }
+
+  List<Team> _mergeTeamNeeds(
+    List<Team> teams,
+    Map<String, List<String>> needsByAbbr,
+  ) {
+    if (needsByAbbr.isEmpty) return teams;
+    return teams.map((team) {
+      final abbr = team.abbreviation.toUpperCase();
+      final needs = needsByAbbr[abbr];
+      if (needs == null || needs.isEmpty) return team;
+      return Team(
+        teamId: team.teamId,
+        name: team.name,
+        city: team.city,
+        abbreviation: team.abbreviation,
+        conference: team.conference,
+        division: team.division,
+        needs: needs,
+        colors: team.colors,
+        logoUrl: team.logoUrl,
+      );
+    }).toList();
   }
 
   void pauseClock() async {

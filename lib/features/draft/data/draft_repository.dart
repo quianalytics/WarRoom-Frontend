@@ -5,6 +5,7 @@ import '../models/api_list.dart';
 import '../models/team.dart';
 import '../models/draft_pick.dart';
 import '../models/prospect.dart';
+import '../models/team_needs.dart';
 
 class DraftRepository {
   DraftRepository({Dio? dio}) : _dio = dio ?? ApiClient.instance.dio;
@@ -20,6 +21,23 @@ class DraftRepository {
       return parsed.results;
     } catch (e, st) {
       ErrorReporter.report(e, st, context: 'DraftRepository.fetchTeams');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, List<String>>> fetchTeamNeeds(int year) async {
+    try {
+      final res = await _dio.get('/teams/needs/$year');
+      final parsed = ApiListResponse<TeamNeedsEntry>.fromJson(
+        res.data as Map<String, dynamic>,
+        (j) => TeamNeedsEntry.fromJson(j as Map<String, dynamic>),
+      );
+      return {
+        for (final entry in parsed.results)
+          entry.teamAbbr.toUpperCase(): entry.needs,
+      };
+    } catch (e, st) {
+      ErrorReporter.report(e, st, context: 'DraftRepository.fetchTeamNeeds');
       rethrow;
     }
   }
