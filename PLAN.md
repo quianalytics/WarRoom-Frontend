@@ -180,6 +180,8 @@ Parsing notes:
   - On-clock footer
 - Draft HQ lives in the draft room app bar and shows analytics for user teams:
   needs, BPA vs need meter, reach/steal alerts, trade value deltas, and next pick.
+- Draft HQ also includes a run predictor (with confidence meter), a draft board
+  optimizer, and a trade bait list.
 - Home screen includes About dialog and Contact Us webview.
 - Setup screen includes a Home icon in the app bar for quick navigation.
 - Widgets in `lib/features/draft/ui/widgets/` are feature-specific surfaces.
@@ -199,6 +201,8 @@ Parsing notes:
   includes both CPU trades and user trades.
 - Draft room polish includes round transition banners, pick chimes, on-clock
   haptics, and a shimmer on the top prospect.
+- Prospect cards support swipe-to-mark Trade Bait and show a blue action state
+  when marked.
 - Setup includes a Sound + Haptics toggle persisted in `LocalStore`, and draft
   feedback respects the saved setting.
 - Setup includes a Trade popups toggle persisted in `LocalStore`; when disabled,
