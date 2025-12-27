@@ -19,6 +19,7 @@ and where changes should be made when adding features.
 - Draft recap supports sharing and saving a screenshot of the recap view.
 - Recap sharing uses platform plugins; unsupported platforms show a warning.
 - Draft HQ provides a centralized analytics sheet in the draft room.
+- Daily challenges and badges track draft achievements and streaks.
 
 ## Project Layout (Primary Areas)
 - App shell: `lib/main.dart`, `lib/app_router.dart`, `lib/theme/app_theme.dart`.
@@ -162,6 +163,9 @@ Parsing notes:
 ## UI Architecture
 - Home screen: `lib/features/home/home_screen.dart` is a lightweight entry point
   that routes into setup.
+- Home screen includes daily challenge status, streak badges, and a badges sheet
+  that groups challenges by difficulty with colored difficulty chips and a
+  completed count summary.
 - Setup flow: `lib/features/setup/setup_screen.dart` is a simple stateful view
   that prepares query params for the draft route, including CPU speed selection
   and trade tuning. Team labels are colored by team brand.
@@ -208,6 +212,7 @@ Parsing notes:
 - Setup includes a Trade popups toggle persisted in `LocalStore`; when disabled,
   offers skip modal popups but still appear in the Trade Center.
 - Trade popups toggle is also exposed mid-draft in the Trade Center settings.
+- Badge earned toasts are styled to match the WarRoom theme.
 - Recap share/save applies a branded frame (title, watermark, badge stats) before
   exporting or saving the screenshot.
 - Recap screen includes a hero-style reveal (fade/slide) and grade stamp
@@ -226,6 +231,33 @@ Parsing notes:
 - WarRoom background layer (grid + glow) wraps home, setup, draft room, and recap.
 - WarRoom background includes subtle parallax drift for cinematic motion.
 - Theme tokens: `lib/theme/app_theme.dart` (colors, radii, spacing).
+
+## Challenges and Badges
+- Source: `lib/core/challenges/draft_challenges.dart` defines the catalog.
+- Challenge data model:
+  - `id`, `title`, `description`, `difficulty`, `isComplete(DraftState)`.
+- Difficulty tiers: easy, medium, hard, elite (used for grouping and visuals).
+- Evaluation:
+  - `DraftChallenges.evaluate(state)` returns all completed challenge IDs.
+  - `DraftController` compares newly completed IDs to stored badges and emits
+    them via `badgeEarnedStream`.
+  - Daily challenge rotates by day-of-year via `dailyChallengeFor(DateTime)`.
+- Storage:
+  - Badge IDs are persisted in `LocalStore` (`getBadgeIds`, `addBadges`).
+  - Daily challenge completion is stored per-day with
+    `isDailyChallengeCompleted` / `markDailyChallengeCompleted`.
+  - Streak tracking persists consecutive-day completion counts.
+- UI surfaces:
+  - Home screen shows daily challenge, reset countdown, and streak badges.
+  - “View Badges” sheet groups badges by difficulty, shows a completed count,
+    and uses difficulty-colored chips (easy/medium/hard/elite).
+  - Draft room shows styled badge-earned toasts from `badgeEarnedStream`.
+- Challenge coverage (examples):
+  - Trades: first trade, 3/5 trades, trade up/down, no trades.
+  - Value vs reach: steals (10/20/30+), no reaches, round-specific value.
+  - Needs: fill needs in round 1, first two rounds, 3–4 total needs.
+  - Volume/position: 5/7 picks, position diversity, trenches/secondary focus.
+  - Draft structure: double-dip rounds, consecutive picks, extra firsts.
 
 ## Error Handling
 - `DraftController` sets a string `error` in state on failures.

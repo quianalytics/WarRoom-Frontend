@@ -32,6 +32,7 @@ class DraftController extends StateNotifier<DraftState> {
   final StreamController<Set<String>> _badgeEarnedController =
       StreamController.broadcast();
   Stream<Set<String>> get badgeEarnedStream => _badgeEarnedController.stream;
+  bool _savingEnabled = true;
 
   DraftSpeedPreset _speedPreset = DraftSpeedPreset.normal;
   DraftSpeed _speed = DraftSpeed.forPreset(DraftSpeedPreset.normal);
@@ -50,8 +51,9 @@ class DraftController extends StateNotifier<DraftState> {
     required int year,
     required List<String> userTeams,
     DraftSpeedPreset speedPreset = DraftSpeedPreset.normal,
-
+    bool saveDraft = true,
   }) async {
+    _savingEnabled = saveDraft;
     _speedPreset = speedPreset;
     _speed = DraftSpeed.forPreset(speedPreset);
     _tradeScheduledIndex = null;
@@ -263,6 +265,7 @@ class DraftController extends StateNotifier<DraftState> {
     int year, {
     int? resumePick,
   }) async {
+    _savingEnabled = true;
     final saved = await LocalStore.loadDraft(year);
     if (saved == null) {
       state = state.copyWith(error: 'No saved draft found for $year');
@@ -276,6 +279,7 @@ class DraftController extends StateNotifier<DraftState> {
     String id, {
     int? resumePick,
   }) async {
+    _savingEnabled = true;
     final saved = await LocalStore.loadDraftHistoryDraft(id);
     if (saved == null) {
       state = state.copyWith(error: 'No saved draft found for $id');
@@ -311,6 +315,7 @@ class DraftController extends StateNotifier<DraftState> {
   }
 
   Future<void> saveNow() async {
+    if (!_savingEnabled) return;
     if (state.order.isEmpty) return;
     await LocalStore.saveDraft(state.year, state.toJson());
     if (state.draftId.isNotEmpty) {
@@ -359,6 +364,10 @@ class DraftController extends StateNotifier<DraftState> {
 
   double get cpuTradeFrequency => _cpuTradeFrequency;
   double get cpuTradeStrictness => _cpuTradeStrictness;
+
+  void setSavingEnabled(bool enabled) {
+    _savingEnabled = enabled;
+  }
 
   String _newDraftId() =>
       'draft_${DateTime.now().millisecondsSinceEpoch}_${_rng.nextInt(9999)}';

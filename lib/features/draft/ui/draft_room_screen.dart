@@ -49,6 +49,8 @@ class DraftRoomScreen extends ConsumerStatefulWidget {
   ConsumerState<DraftRoomScreen> createState() => _DraftRoomScreenState();
 }
 
+enum _ExitAction { cancel, exit, save }
+
 class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     with SingleTickerProviderStateMixin {
   String search = '';
@@ -123,6 +125,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
               .map((e) => e.toUpperCase())
               .toList(),
           speedPreset: widget.speedPreset,
+          saveDraft: false,
         );
       }
     });
@@ -1559,6 +1562,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                                 .map((e) => e.toUpperCase())
                                 .toList(),
                             speedPreset: widget.speedPreset,
+                            saveDraft: false,
                           );
                         }
                       },
@@ -1814,25 +1818,39 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
   }
 
   Future<void> _confirmExit(BuildContext context) async {
-    final ok = await showDialog<bool>(
+    final controller = ref.read(draftControllerProvider.notifier);
+    final action = await showDialog<_ExitAction>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Exit draft?'),
-        content: const Text('Press Resume Draft on the home page if you would like to finish.'),
+        content: const Text(
+          'Would you like to save this draft so you can resume later?',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(ctx, _ExitAction.cancel),
             child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, _ExitAction.exit),
+            child: const Text('Exit Without Saving'),
+          ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Exit'),
+            onPressed: () => Navigator.pop(ctx, _ExitAction.save),
+            child: const Text('Save & Exit'),
           ),
         ],
       ),
     );
 
-    if (ok == true && context.mounted) {
+    if (!context.mounted || action == null || action == _ExitAction.cancel) {
+      return;
+    }
+    if (action == _ExitAction.save) {
+      controller.setSavingEnabled(true);
+      await controller.saveNow();
+    }
+    if (context.mounted) {
       context.go('/');
     }
   }

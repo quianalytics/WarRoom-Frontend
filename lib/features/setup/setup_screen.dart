@@ -539,7 +539,7 @@ class _SetupScreenState extends State<SetupScreen> {
                               ),
                               PopupMenuItem(
                                 value: 'clear',
-                                child: Text('Clear Entry'),
+                                child: Text('Delete'),
                               ),
                             ],
                           ),
@@ -597,7 +597,7 @@ class _SetupScreenState extends State<SetupScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Clear history entry?'),
+        title: const Text('Delete history entry?'),
         content: const Text(
           'This removes the saved history entry. The active resume slot for the '
           'year will remain.',
@@ -609,7 +609,7 @@ class _SetupScreenState extends State<SetupScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clear'),
+            child: const Text('Delete'),
           ),
         ],
       ),
