@@ -9,6 +9,8 @@ class LocalStore {
   static const _tradePopupsKey = 'trade_popups_enabled';
   static const _lastActiveDateKey = 'last_active_date';
   static const _draftStreakKey = 'draft_streak_count';
+  static const _badgeIdsKey = 'badge_ids';
+  static const _dailyChallengePrefix = 'daily_challenge_completed_';
 
   static Future<void> saveDraft(int year, Map<String, dynamic> json) async {
     final prefs = await SharedPreferences.getInstance();
@@ -143,6 +145,29 @@ class LocalStore {
 
   static String _dayKey(DateTime date) =>
       '${date.year}-${date.month}-${date.day}';
+
+  static Future<Set<String>> getBadgeIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_badgeIdsKey);
+    return raw?.toSet() ?? <String>{};
+  }
+
+  static Future<void> addBadges(Set<String> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = await getBadgeIds();
+    current.addAll(ids);
+    await prefs.setStringList(_badgeIdsKey, current.toList());
+  }
+
+  static Future<bool> isDailyChallengeCompleted(DateTime date) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('$_dailyChallengePrefix${_dayKey(date)}') ?? false;
+  }
+
+  static Future<void> markDailyChallengeCompleted(DateTime date) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('$_dailyChallengePrefix${_dayKey(date)}', true);
+  }
 }
 
 class DraftHistoryEntry {

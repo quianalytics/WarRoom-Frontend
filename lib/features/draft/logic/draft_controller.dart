@@ -13,6 +13,7 @@ import 'dart:math';
 import '../../../core/storage/local_store.dart';
 import 'draft_speed.dart';
 import '../../../core/observability/error_reporter.dart';
+import '../../../core/challenges/draft_challenges.dart';
 
 class DraftController extends StateNotifier<DraftState> {
   DraftController(this._repo) : super(DraftState.initial());
@@ -27,6 +28,10 @@ class DraftController extends StateNotifier<DraftState> {
   final Random _rng = Random();
   double _cpuTradeFrequency = 0.22;
   double _cpuTradeStrictness = 0.0;
+  final Set<String> _completedBadges = {};
+  final StreamController<Set<String>> _badgeEarnedController =
+      StreamController.broadcast();
+  Stream<Set<String>> get badgeEarnedStream => _badgeEarnedController.stream;
 
   DraftSpeedPreset _speedPreset = DraftSpeedPreset.normal;
   DraftSpeed _speed = DraftSpeed.forPreset(DraftSpeedPreset.normal);
@@ -50,6 +55,7 @@ class DraftController extends StateNotifier<DraftState> {
     _speedPreset = speedPreset;
     _speed = DraftSpeed.forPreset(speedPreset);
     _tradeScheduledIndex = null;
+    await _loadBadges();
 
     state = state.copyWith(
       loading: true,
@@ -87,6 +93,7 @@ class DraftController extends StateNotifier<DraftState> {
       );
 
       await saveNow(); // initial save
+      await _evaluateChallenges();
       _startClockForCurrentPick();
       _maybeOfferTrade();
       _maybeScheduleCpuPick();
@@ -194,8 +201,10 @@ class DraftController extends StateNotifier<DraftState> {
       _maybeOfferTrade();
       _maybeScheduleCpuPick();
       await saveNow();
+      await _evaluateChallenges();
     } else {
       _clock.stop();
+      await _evaluateChallenges();
     }
   }
 
@@ -259,6 +268,7 @@ class DraftController extends StateNotifier<DraftState> {
       state = state.copyWith(error: 'No saved draft found for $year');
       return;
     }
+    await _loadBadges();
     await _resumeFromJson(saved, resumePick: resumePick);
   }
 
@@ -271,6 +281,7 @@ class DraftController extends StateNotifier<DraftState> {
       state = state.copyWith(error: 'No saved draft found for $id');
       return;
     }
+    await _loadBadges();
     await _resumeFromJson(saved, resumePick: resumePick);
   }
 
@@ -296,6 +307,7 @@ class DraftController extends StateNotifier<DraftState> {
     _startClockForCurrentPick();
     _maybeOfferTrade();
     _maybeScheduleCpuPick();
+    await _evaluateChallenges();
   }
 
   Future<void> saveNow() async {
@@ -350,6 +362,28 @@ class DraftController extends StateNotifier<DraftState> {
 
   String _newDraftId() =>
       'draft_${DateTime.now().millisecondsSinceEpoch}_${_rng.nextInt(9999)}';
+
+  Future<void> _loadBadges() async {
+    final badges = await LocalStore.getBadgeIds();
+    _completedBadges
+      ..clear()
+      ..addAll(badges);
+  }
+
+  Future<void> _evaluateChallenges() async {
+    if (state.order.isEmpty) return;
+    final completed = DraftChallenges.evaluate(state);
+    final newly = completed.difference(_completedBadges);
+    if (newly.isNotEmpty) {
+      _completedBadges.addAll(newly);
+      await LocalStore.addBadges(newly);
+      _badgeEarnedController.add(newly);
+    }
+    final daily = DraftChallenges.dailyChallengeFor(DateTime.now());
+    if (completed.contains(daily.id)) {
+      await LocalStore.markDailyChallengeCompleted(DateTime.now());
+    }
+  }
 
   DraftState _rewindToPick(DraftState loaded, int resumePick) {
     if (loaded.order.isEmpty) return loaded;
@@ -488,6 +522,7 @@ class DraftController extends StateNotifier<DraftState> {
     state = state.copyWith(order: updatedOrder);
     if (log) _recordTrade(offer);
     _pruneExpiredTradeOffers();
+    _evaluateChallenges();
   }
 
   void _queueTradeOffer(TradeOffer offer) {
@@ -807,6 +842,7 @@ class DraftController extends StateNotifier<DraftState> {
   void dispose() {
     _cpuTimer?.cancel();
     _clock.stop();
+    _badgeEarnedController.close();
     super.dispose();
   }
 }

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers.dart';
 import '../../../core/storage/local_store.dart';
+import '../../../core/challenges/draft_challenges.dart';
 import '../logic/draft_controller.dart';
 import '../logic/draft_speed.dart';
 import '../logic/draft_state.dart';
@@ -77,6 +78,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
   bool _soundHapticsEnabled = true;
   bool _tradePopupsEnabled = true;
   final Set<String> _tradeBaitIds = {};
+  StreamSubscription<Set<String>>? _badgeSubscription;
 
   @override
   void initState() {
@@ -88,6 +90,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
       duration: const Duration(seconds: 2),
     )..repeat();
     _loadSoundSettings();
+    _listenForBadgeToasts();
 
     // Avoid Riverpod provider mutation during build/lifecycle.
     Future.microtask(() async {
@@ -139,6 +142,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
   void dispose() {
     _pickLogScroll.dispose();
     _shimmerController.dispose();
+    _badgeSubscription?.cancel();
     super.dispose();
   }
 
@@ -1574,6 +1578,49 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     if (_listenersBound) return;
     _listenersBound = true;
     _listenForTradeOffers();
+  }
+
+  void _listenForBadgeToasts() {
+    _badgeSubscription?.cancel();
+    _badgeSubscription =
+        ref.read(draftControllerProvider.notifier).badgeEarnedStream.listen(
+      (badges) {
+        if (!mounted || badges.isEmpty) return;
+        final names = badges
+            .map((id) => DraftChallenges.byId(id)?.title ?? id)
+            .toList();
+        final text = names.length == 1
+            ? 'Badge earned: ${names.first}'
+            : 'Badges earned: ${names.join(', ')}';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.surface,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(color: AppColors.border),
+            ),
+            content: Row(
+              children: [
+                const Icon(Icons.emoji_events, color: AppColors.mint),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    text,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      },
+    );
   }
 
   void _maybeShowDraftCompletePrompt(DraftState state) {
