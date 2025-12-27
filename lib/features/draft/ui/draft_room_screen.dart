@@ -361,6 +361,15 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                         ),
                         SliverToBoxAdapter(
                           child: SectionFrame(
+                            title: 'Need Timeline',
+                            child: _teamNeedTimelineSection(current),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
                             title: 'BPA vs Need',
                             child: _bpaVsNeedSection(current),
                           ),
@@ -766,6 +775,108 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     );
   }
 
+  Widget _teamNeedTimelineSection(DraftState state) {
+    if (state.userTeams.isEmpty) {
+      return const Text('No user teams selected.');
+    }
+    final entries = state.userTeams
+        .map((abbr) => _teamByAbbr(state, abbr))
+        .whereType<Team>()
+        .toList();
+    if (entries.isEmpty) {
+      return const Text('No user team data available.');
+    }
+
+    final sections = <Widget>[];
+    for (final team in entries) {
+      final needs = team.needs ?? const <String>[];
+      if (needs.isEmpty) {
+        sections.add(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                team.abbreviation.toUpperCase(),
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              const Text('No needs data available.'),
+            ],
+          ),
+        );
+        sections.add(const SizedBox(height: 12));
+        continue;
+      }
+
+      final picks = state.picksMade
+          .where((p) =>
+              p.teamAbbr.toUpperCase() == team.abbreviation.toUpperCase())
+          .toList()
+        ..sort((a, b) =>
+            a.pick.pickOverall.compareTo(b.pick.pickOverall));
+
+      final filledByNeed = <String, int?>{};
+      for (final need in needs) {
+        filledByNeed[need.toUpperCase()] = null;
+      }
+      for (final pr in picks) {
+        final pos = pr.prospect.position.toUpperCase();
+        if (filledByNeed.containsKey(pos) && filledByNeed[pos] == null) {
+          filledByNeed[pos] = pr.pick.pickOverall;
+        }
+      }
+
+      final timeline = filledByNeed.entries
+          .where((e) => e.value != null)
+          .toList()
+        ..sort((a, b) => a.value!.compareTo(b.value!));
+
+      sections.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              team.abbreviation.toUpperCase(),
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: needs
+                  .map((need) => _needStatusChip(
+                        need.toUpperCase(),
+                        filledByNeed[need.toUpperCase()],
+                      ))
+                  .toList(),
+            ),
+            if (timeline.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: timeline.map((entry) {
+                  return Text(
+                    'Pick ${entry.value}: ${entry.key} filled',
+                    style: const TextStyle(color: AppColors.textMuted),
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ),
+      );
+      sections.add(const SizedBox(height: 12));
+    }
+
+    if (sections.isNotEmpty) {
+      sections.removeLast();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: sections,
+    );
+  }
+
   Widget _nextPickSection(DraftState state) {
     final gap = _nextUserPickGap(state);
     if (gap == null) {
@@ -801,6 +912,28 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
       spacing: 8,
       runSpacing: 8,
       children: chips,
+    );
+  }
+
+  Widget _needStatusChip(String need, int? pickOverall) {
+    final filled = pickOverall != null;
+    final color = filled ? AppColors.mint : AppColors.surface2;
+    final border = filled ? AppColors.mint : AppColors.border;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(filled ? 0.2 : 1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        filled ? '$need ✓' : need,
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+          color: filled ? AppColors.text : AppColors.text,
+        ),
+      ),
     );
   }
 

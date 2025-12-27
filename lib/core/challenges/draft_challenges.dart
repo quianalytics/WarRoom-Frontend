@@ -57,6 +57,13 @@ class DraftChallenges {
       isComplete: _tradeFive,
     ),
     DraftChallenge(
+      id: 'trade_seven',
+      title: 'Trade Tornado',
+      description: 'Complete 7 trades involving your team.',
+      difficulty: ChallengeDifficulty.elite,
+      isComplete: _tradeSeven,
+    ),
+    DraftChallenge(
       id: 'trade_up',
       title: 'Aggressive Climb',
       description: 'Trade up to an earlier pick.',
@@ -85,11 +92,25 @@ class DraftChallenges {
       isComplete: _steal20,
     ),
     DraftChallenge(
+      id: 'steal_30',
+      title: 'Heist of the Year',
+      description: 'Draft a player ranked 30+ spots higher than the pick.',
+      difficulty: ChallengeDifficulty.elite,
+      isComplete: _steal30,
+    ),
+    DraftChallenge(
       id: 'reach_10',
       title: 'Bold Swing',
       description: 'Draft a player 10+ spots earlier than their rank.',
       difficulty: ChallengeDifficulty.medium,
       isComplete: _reach10,
+    ),
+    DraftChallenge(
+      id: 'reach_20',
+      title: 'Big Reach',
+      description: 'Draft a player 20+ spots earlier than their rank.',
+      difficulty: ChallengeDifficulty.hard,
+      isComplete: _reach20,
     ),
     DraftChallenge(
       id: 'need_round1',
@@ -120,11 +141,25 @@ class DraftChallenges {
       isComplete: _trenchesRound1,
     ),
     DraftChallenge(
+      id: 'trenches_two_rounds',
+      title: 'Wall Builder',
+      description: 'Draft trench players in both Round 1 and Round 2.',
+      difficulty: ChallengeDifficulty.medium,
+      isComplete: _trenchesTwoRounds,
+    ),
+    DraftChallenge(
       id: 'db_round1',
       title: 'No Fly Zone',
       description: 'Draft a CB or S in Round 1.',
       difficulty: ChallengeDifficulty.easy,
       isComplete: _dbRound1,
+    ),
+    DraftChallenge(
+      id: 'db_double',
+      title: 'Shut Down',
+      description: 'Draft two defensive backs in the first two rounds.',
+      difficulty: ChallengeDifficulty.medium,
+      isComplete: _dbDouble,
     ),
     DraftChallenge(
       id: 'double_dip',
@@ -139,6 +174,13 @@ class DraftChallenges {
       description: 'Hold 2+ first-round picks.',
       difficulty: ChallengeDifficulty.medium,
       isComplete: _twoFirsts,
+    ),
+    DraftChallenge(
+      id: 'four_picks_top_100',
+      title: 'Top 100 Fleet',
+      description: 'Make four picks inside the top 100.',
+      difficulty: ChallengeDifficulty.hard,
+      isComplete: _top100Fleet,
     ),
     DraftChallenge(
       id: 'round1_spree',
@@ -190,6 +232,13 @@ class DraftChallenges {
       isComplete: _positionDiversity,
     ),
     DraftChallenge(
+      id: 'position_diversity_plus',
+      title: 'Deep Variety',
+      description: 'Draft 7 different positions.',
+      difficulty: ChallengeDifficulty.hard,
+      isComplete: _positionDiversityPlus,
+    ),
+    DraftChallenge(
       id: 'two_steals',
       title: 'Double Steal',
       description: 'Draft two players ranked 10+ spots higher than the pick.',
@@ -202,6 +251,13 @@ class DraftChallenges {
       description: 'Fill three team needs across the draft.',
       difficulty: ChallengeDifficulty.medium,
       isComplete: _threeNeeds,
+    ),
+    DraftChallenge(
+      id: 'no_need_misses',
+      title: 'Needs Perfect',
+      description: 'Fill every listed need for your team.',
+      difficulty: ChallengeDifficulty.elite,
+      isComplete: _noNeedMisses,
     ),
     DraftChallenge(
       id: 'needs_four',
@@ -232,6 +288,13 @@ class DraftChallenges {
       isComplete: _threeOffense,
     ),
     DraftChallenge(
+      id: 'offense_surge',
+      title: 'Offense Surge',
+      description: 'Draft five offensive players.',
+      difficulty: ChallengeDifficulty.medium,
+      isComplete: _offenseSurge,
+    ),
+    DraftChallenge(
       id: 'qb_and_wr',
       title: 'New Duo',
       description: 'Draft a QB and a WR in the same class.',
@@ -244,6 +307,13 @@ class DraftChallenges {
       description: 'Draft two DBs (CB/S).',
       difficulty: ChallengeDifficulty.medium,
       isComplete: _secondaryDouble,
+    ),
+    DraftChallenge(
+      id: 'secondary_triple',
+      title: 'Air Tight',
+      description: 'Draft three DBs (CB/S).',
+      difficulty: ChallengeDifficulty.hard,
+      isComplete: _secondaryTriple,
     ),
     DraftChallenge(
       id: 'value_round1_2',
@@ -288,6 +358,13 @@ class DraftChallenges {
       isComplete: _lateRoundLock,
     ),
     DraftChallenge(
+      id: 'late_round_double',
+      title: 'Day 3 Double',
+      description: 'Draft two Round 5+ players ranked 15+ spots higher.',
+      difficulty: ChallengeDifficulty.hard,
+      isComplete: _lateRoundDouble,
+    ),
+    DraftChallenge(
       id: 'positional_run_survive',
       title: 'Run Survivor',
       description: 'Draft 2+ needs after a position run (last 6 picks).',
@@ -307,6 +384,13 @@ class DraftChallenges {
       description: 'Make consecutive picks in the draft order.',
       difficulty: ChallengeDifficulty.hard,
       isComplete: _backToBack,
+    ),
+    DraftChallenge(
+      id: 'three_rounds_in_a_row',
+      title: 'Round Regular',
+      description: 'Make picks in three consecutive rounds.',
+      difficulty: ChallengeDifficulty.medium,
+      isComplete: _threeRoundsInRow,
     ),
   ];
 
@@ -354,6 +438,7 @@ class DraftChallenges {
   static bool _tradeOnce(DraftState state) => _userTrades(state).isNotEmpty;
   static bool _tradeThree(DraftState state) => _userTrades(state).length >= 3;
   static bool _tradeFive(DraftState state) => _userTrades(state).length >= 5;
+  static bool _tradeSeven(DraftState state) => _userTrades(state).length >= 7;
 
   static bool _tradeUp(DraftState state) {
     return _userTrades(state).any((trade) {
@@ -389,8 +474,12 @@ class DraftChallenges {
       _userPicks(state).any((p) => _delta(p) >= 10);
   static bool _steal20(DraftState state) =>
       _userPicks(state).any((p) => _delta(p) >= 20);
+  static bool _steal30(DraftState state) =>
+      _userPicks(state).any((p) => _delta(p) >= 30);
   static bool _reach10(DraftState state) =>
       _userPicks(state).any((p) => _delta(p) <= -10);
+  static bool _reach20(DraftState state) =>
+      _userPicks(state).any((p) => _delta(p) <= -20);
 
   static bool _needRound1(DraftState state) {
     final users = _userTeams(state);
@@ -438,11 +527,30 @@ class DraftChallenges {
     );
   }
 
+  static bool _trenchesTwoRounds(DraftState state) {
+    const trenches = {'OT', 'IOL', 'DL', 'EDGE', 'OL', 'DT'};
+    final r1 = _userPicks(state)
+        .where((p) => p.pick.round == 1)
+        .any((p) => trenches.contains(p.prospect.position.toUpperCase()));
+    final r2 = _userPicks(state)
+        .where((p) => p.pick.round == 2)
+        .any((p) => trenches.contains(p.prospect.position.toUpperCase()));
+    return r1 && r2;
+  }
+
   static bool _dbRound1(DraftState state) {
     const db = {'CB', 'S'};
     return _userPicks(state).any(
       (p) => p.pick.round == 1 && db.contains(p.prospect.position.toUpperCase()),
     );
+  }
+
+  static bool _dbDouble(DraftState state) {
+    const db = {'CB', 'S'};
+    final early = _userPicks(state).where((p) => p.pick.round <= 2);
+    final count =
+        early.where((p) => db.contains(p.prospect.position.toUpperCase())).length;
+    return count >= 2;
   }
 
   static bool _doubleDip(DraftState state) {
@@ -462,6 +570,12 @@ class DraftChallenges {
   static bool _round1Spree(DraftState state) {
     final count = _userPicks(state).where((p) => p.pick.round == 1).length;
     return count >= 3;
+  }
+
+  static bool _top100Fleet(DraftState state) {
+    final count =
+        _userPicks(state).where((p) => p.pick.pickOverall <= 100).length;
+    return count >= 4;
   }
 
   static bool _valueClass(DraftState state) {
@@ -493,6 +607,13 @@ class DraftChallenges {
     return positions.length >= 5;
   }
 
+  static bool _positionDiversityPlus(DraftState state) {
+    final positions = _userPicks(state)
+        .map((p) => p.prospect.position.toUpperCase())
+        .toSet();
+    return positions.length >= 7;
+  }
+
   static bool _twoSteals(DraftState state) {
     final steals =
         _userPicks(state).where((p) => _delta(p) >= 10).length;
@@ -512,6 +633,22 @@ class DraftChallenges {
       }
     }
     return matches >= 3;
+  }
+
+  static bool _noNeedMisses(DraftState state) {
+    final needs = _userTeams(state)
+        .map((abbr) => state.teams.firstWhere(
+              (t) => t.abbreviation.toUpperCase() == abbr,
+              orElse: () => state.teams.first,
+            ))
+        .expand((t) => t.needs ?? const <String>[])
+        .map((n) => n.toUpperCase())
+        .toSet();
+    if (needs.isEmpty) return false;
+    final drafted = _userPicks(state)
+        .map((p) => p.prospect.position.toUpperCase())
+        .toSet();
+    return needs.difference(drafted).isEmpty;
   }
 
   static bool _needsFour(DraftState state) {
@@ -553,6 +690,14 @@ class DraftChallenges {
     return count >= 3;
   }
 
+  static bool _offenseSurge(DraftState state) {
+    const offense = {'QB', 'RB', 'WR', 'TE', 'OT', 'IOL', 'OL'};
+    final count = _userPicks(state)
+        .where((p) => offense.contains(p.prospect.position.toUpperCase()))
+        .length;
+    return count >= 5;
+  }
+
   static bool _qbAndWr(DraftState state) {
     var hasQb = false;
     var hasWr = false;
@@ -570,6 +715,14 @@ class DraftChallenges {
         .where((p) => secondary.contains(p.prospect.position.toUpperCase()))
         .length;
     return count >= 2;
+  }
+
+  static bool _secondaryTriple(DraftState state) {
+    const secondary = {'CB', 'S'};
+    final count = _userPicks(state)
+        .where((p) => secondary.contains(p.prospect.position.toUpperCase()))
+        .length;
+    return count >= 3;
   }
 
   static bool _valueRound1_2(DraftState state) {
@@ -619,6 +772,13 @@ class DraftChallenges {
     );
   }
 
+  static bool _lateRoundDouble(DraftState state) {
+    final count = _userPicks(state)
+        .where((p) => p.pick.round >= 5 && _delta(p) >= 15)
+        .length;
+    return count >= 2;
+  }
+
   static bool _runSurvivor(DraftState state) {
     final recent = state.picksMade.reversed.take(6).toList();
     if (recent.length < 4) return false;
@@ -658,6 +818,24 @@ class DraftChallenges {
       ..sort();
     for (var i = 1; i < picks.length; i += 1) {
       if (picks[i] == picks[i - 1] + 1) return true;
+    }
+    return false;
+  }
+
+  static bool _threeRoundsInRow(DraftState state) {
+    final rounds = _userPicks(state)
+        .map((p) => p.pick.round)
+        .toSet()
+        .toList()
+      ..sort();
+    var streak = 1;
+    for (var i = 1; i < rounds.length; i += 1) {
+      if (rounds[i] == rounds[i - 1] + 1) {
+        streak += 1;
+        if (streak >= 3) return true;
+      } else {
+        streak = 1;
+      }
     }
     return false;
   }
