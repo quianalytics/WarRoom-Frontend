@@ -30,6 +30,7 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
   bool _sortByTeam = false;
   final GlobalKey _recapKey = GlobalKey();
   bool _exporting = false;
+  bool _pressersExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -219,26 +220,52 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Post-Draft Pressers',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 15,
+                              InkWell(
+                                onTap: () => setState(
+                                  () => _pressersExpanded =
+                                      !_pressersExpanded,
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              ..._presserLines(picks).map(
-                                (line) => Padding(
-                                  padding:
-                                      const EdgeInsets.only(bottom: 6),
-                                  child: Text(
-                                    '• $line',
-                                    style: const TextStyle(
-                                      color: AppColors.textMuted,
-                                    ),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 2,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Expanded(
+                                        child: Text(
+                                          'Post-Draft Pressers',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ),
+                                      Icon(
+                                        _pressersExpanded
+                                            ? Icons.expand_less
+                                            : Icons.expand_more,
+                                        color: AppColors.textMuted,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
+                              if (_pressersExpanded) ...[
+                                const SizedBox(height: 8),
+                                ..._presserLines(picks).map(
+                                  (line) => Padding(
+                                    padding:
+                                        const EdgeInsets.only(bottom: 6),
+                                    child: Text(
+                                      '• $line',
+                                      style: const TextStyle(
+                                        color: AppColors.textMuted,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
