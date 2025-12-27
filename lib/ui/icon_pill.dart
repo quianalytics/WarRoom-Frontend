@@ -7,11 +7,13 @@ class IconPill extends StatelessWidget {
     required this.icon,
     this.onPressed,
     this.tooltip,
+    this.dense = false,
   });
 
   final IconData icon;
   final VoidCallback? onPressed;
   final String? tooltip;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +21,7 @@ class IconPill extends StatelessWidget {
       tooltip: tooltip,
       onPressed: onPressed,
       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      padding: dense ? EdgeInsets.zero : const EdgeInsets.all(4),
       icon: Container(
         padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(

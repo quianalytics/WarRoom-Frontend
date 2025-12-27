@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import '../logic/draft_state.dart';
+import '../models/draft_pick.dart';
 import '../providers.dart';
 import '../../../theme/app_theme.dart';
 import '../../../ui/panel.dart';
@@ -31,6 +32,43 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
   final GlobalKey _recapKey = GlobalKey();
   bool _exporting = false;
   bool _pressersExpanded = false;
+
+  Widget? _viaBadge(DraftPick pick, Color baseColor) {
+    final original = pick.originalTeamAbbr.toUpperCase();
+    final current = pick.teamAbbr.toUpperCase();
+    if (original.isEmpty || original == current) return null;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: baseColor.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: baseColor.withOpacity(0.6)),
+      ),
+      child: Text(
+        'via $original',
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: _readableTeamColor(baseColor),
+        ),
+      ),
+    );
+  }
+
+  TextStyle _adaptiveNameStyle(
+    String name, {
+    double base = 15,
+  }) {
+    final length = name.trim().length;
+    var size = base;
+    if (length > 24) size -= 1;
+    if (length > 30) size -= 1;
+    if (length > 36) size -= 1;
+    return TextStyle(
+      fontWeight: FontWeight.w800,
+      fontSize: size,
+      color: AppColors.text,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -281,6 +319,8 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                               final teamColorRaw =
                                   teamColors[pr.teamAbbr.toUpperCase()] ??
                                       AppColors.blue;
+                              final viaBadge =
+                                  _viaBadge(pr.pick, teamColorRaw);
                               return StaggeredReveal(
                                 index: i,
                                 child: PickCard(
@@ -296,9 +336,9 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                                         children: [
                                           Text(
                                             pr.prospect.name,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 15,
+                                            style: _adaptiveNameStyle(
+                                              pr.prospect.name,
+                                              base: 15,
                                             ),
                                           ),
                                           const SizedBox(height: 4),
@@ -335,6 +375,10 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                                         ),
                                       ),
                                     ),
+                                    if (viaBadge != null) ...[
+                                      const SizedBox(width: 6),
+                                      viaBadge,
+                                    ],
                                   ],
                                   ),
                                 ),

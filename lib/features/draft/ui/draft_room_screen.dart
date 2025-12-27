@@ -271,6 +271,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
         IconPill(
           icon: Icons.swap_horiz,
           tooltip: 'Trade Inbox',
+          dense: true,
           onPressed: () => _showTradeInboxSheet(context, state),
         ),
         if (count > 0)
@@ -302,6 +303,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     return IconPill(
       icon: Icons.insights,
       tooltip: 'Draft HQ',
+      dense: true,
       onPressed: () => _showDraftHqSheet(context),
     );
   }
@@ -1615,68 +1617,82 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.year} Mock Draft'),
-        actions: [
-          // Draft speed
-          PopupMenuButton<DraftSpeedPreset>(
-            tooltip: 'Speed',
-            onSelected: controller.setSpeedPreset,
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: DraftSpeedPreset.slow,
-                child: Text('Speed: Slow'),
-              ),
-              PopupMenuItem(
-                value: DraftSpeedPreset.normal,
-                child: Text('Speed: Normal'),
-              ),
-              PopupMenuItem(
-                value: DraftSpeedPreset.fast,
-                child: Text('Speed: Fast'),
-              ),
-              PopupMenuItem(
-                value: DraftSpeedPreset.instant,
-                child: Text('Speed: Instant'),
-              ),
-            ],
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: IconPill(
-                icon: Icons.speed,
-                tooltip: 'Speed',
-                onPressed: null, // handled by PopupMenuButton
+        centerTitle: true,
+        title: Text(
+          '${widget.year} Mock Draft',
+          maxLines: 2,
+          softWrap: true,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(44),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: _withGaps(
+                [
+                  PopupMenuButton<DraftSpeedPreset>(
+                    tooltip: 'Speed',
+                    onSelected: controller.setSpeedPreset,
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: DraftSpeedPreset.slow,
+                        child: Text('Speed: Slow'),
+                      ),
+                      PopupMenuItem(
+                        value: DraftSpeedPreset.normal,
+                        child: Text('Speed: Normal'),
+                      ),
+                      PopupMenuItem(
+                        value: DraftSpeedPreset.fast,
+                        child: Text('Speed: Fast'),
+                      ),
+                      PopupMenuItem(
+                        value: DraftSpeedPreset.instant,
+                        child: Text('Speed: Instant'),
+                      ),
+                    ],
+                    child: IconPill(
+                      icon: Icons.speed,
+                      tooltip: 'Speed',
+                      dense: true,
+                      onPressed: null, // handled by PopupMenuButton
+                    ),
+                  ),
+                  IconPill(
+                    icon: state.clockRunning ? Icons.pause : Icons.play_arrow,
+                    tooltip: state.clockRunning ? 'Pause' : 'Resume',
+                    dense: true,
+                    onPressed: () {
+                      state.clockRunning
+                          ? controller.pauseClock()
+                          : controller.resumeClock();
+                    },
+                  ),
+                  IconPill(
+                    icon: _focusMode
+                        ? Icons.center_focus_strong
+                        : Icons.center_focus_weak,
+                    tooltip: _focusMode ? 'Exit Focus Mode' : 'Focus Mode',
+                    dense: true,
+                    onPressed: () => setState(() => _focusMode = !_focusMode),
+                  ),
+                  _tradeInboxButton(state),
+                  _draftHqButton(state),
+                  IconPill(
+                    icon: Icons.exit_to_app,
+                    tooltip: 'Exit',
+                    dense: true,
+                    onPressed: () => _confirmExit(context),
+                  ),
+                ],
+                6,
               ),
             ),
           ),
-
-          IconPill(
-            icon: state.clockRunning ? Icons.pause : Icons.play_arrow,
-            tooltip: state.clockRunning ? 'Pause' : 'Resume',
-            onPressed: () {
-              state.clockRunning
-                  ? controller.pauseClock()
-                  : controller.resumeClock();
-            },
-          ),
-
-          IconPill(
-            icon:
-                _focusMode ? Icons.center_focus_strong : Icons.center_focus_weak,
-            tooltip: _focusMode ? 'Exit Focus Mode' : 'Focus Mode',
-            onPressed: () => setState(() => _focusMode = !_focusMode),
-          ),
-
-          _tradeInboxButton(state),
-          _draftHqButton(state),
-
-          IconPill(
-            icon: Icons.exit_to_app,
-            tooltip: 'Exit',
-            onPressed: () => _confirmExit(context),
-          ),
-
-          const SizedBox(width: 8),
-        ],
+        ),
       ),
       body: WarRoomBackground(
         child: state.loading
@@ -2439,9 +2455,10 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                                           p.name,
                                           maxLines: isNarrow ? 2 : 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.text,
+                                          style: _adaptiveNameStyle(
+                                            p.name,
+                                            base: isNarrow ? 14 : 15,
+                                            weight: FontWeight.w700,
                                           ),
                                         ),
                                       ),
@@ -2720,6 +2737,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                           teamColors[pick.teamAbbr.toUpperCase()] ??
                               AppColors.blue;
                       final teamColor = _readableTeamColor(teamColorRaw);
+                      final viaBadge = _viaBadge(pick, teamColorRaw);
                       return StaggeredReveal(
                         index: i,
                         child: LayoutBuilder(
@@ -2757,18 +2775,25 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      badge,
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 6,
+                                        children: [
+                                          badge,
+                                          if (viaBadge != null) viaBadge,
+                                        ],
+                                      ),
                                       const SizedBox(height: 8),
                                       Text(
                                         prospect?.name ??
                                             'Pick ${pick.pickOverall}',
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          color: prospect == null
-                                              ? AppColors.textMuted
-                                              : AppColors.text,
+                                        style: _adaptiveNameStyle(
+                                          prospect?.name ??
+                                              'Pick ${pick.pickOverall}',
+                                          base: 15,
+                                          muted: prospect == null,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
@@ -2784,7 +2809,14 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      badge,
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 6,
+                                        children: [
+                                          badge,
+                                          if (viaBadge != null) viaBadge,
+                                        ],
+                                      ),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
@@ -2796,11 +2828,11 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                                                   'Pick ${pick.pickOverall}',
                                               maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                color: prospect == null
-                                                    ? AppColors.textMuted
-                                                    : AppColors.text,
+                                              style: _adaptiveNameStyle(
+                                                prospect?.name ??
+                                                    'Pick ${pick.pickOverall}',
+                                                base: 15,
+                                                muted: prospect == null,
                                               ),
                                             ),
                                             const SizedBox(height: 4),
@@ -2877,6 +2909,46 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     final current = pick.teamAbbr.toUpperCase();
     if (original.isEmpty || original == current) return '';
     return ' • via $original';
+  }
+
+  Widget? _viaBadge(DraftPick pick, Color baseColor) {
+    final original = pick.originalTeamAbbr.toUpperCase();
+    final current = pick.teamAbbr.toUpperCase();
+    if (original.isEmpty || original == current) return null;
+    final color = _readableTeamColor(baseColor);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: baseColor.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: baseColor.withOpacity(0.6)),
+      ),
+      child: Text(
+        'via $original',
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  TextStyle _adaptiveNameStyle(
+    String name, {
+    double base = 15,
+    bool muted = false,
+    FontWeight weight = FontWeight.w800,
+  }) {
+    final length = name.trim().length;
+    var size = base;
+    if (length > 24) size -= 1;
+    if (length > 30) size -= 1;
+    if (length > 36) size -= 1;
+    return TextStyle(
+      fontWeight: weight,
+      fontSize: size,
+      color: muted ? AppColors.textMuted : AppColors.text,
+    );
   }
 
   Map<String, Color> _teamColorMap(DraftState state) {
