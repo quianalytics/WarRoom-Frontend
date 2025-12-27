@@ -196,10 +196,14 @@ class TradeLogEntry {
   final String summary;
   final String fromTeam;
   final String toTeam;
+  final List<TradeAsset> fromAssets;
+  final List<TradeAsset> toAssets;
 
   const TradeLogEntry({
     required this.summary,
     required this.fromTeam,
     required this.toTeam,
+    required this.fromAssets,
+    required this.toAssets,
   });
 }

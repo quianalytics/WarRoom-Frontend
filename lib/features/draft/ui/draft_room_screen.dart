@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -316,15 +317,6 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                         ),
                         SliverToBoxAdapter(
                           child: SectionFrame(
-                            title: 'On-Clock Needs',
-                            child: _onClockNeedsSection(current, teamColors),
-                          ),
-                        ),
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: 12),
-                        ),
-                        SliverToBoxAdapter(
-                          child: SectionFrame(
                             title: 'User Team Needs',
                             child: _userNeedsSection(current, teamColors),
                           ),
@@ -334,8 +326,35 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                         ),
                         SliverToBoxAdapter(
                           child: SectionFrame(
-                            title: 'Position Heat (Top 30)',
-                            child: _positionHeatSection(current),
+                            title: 'User Needs Heat',
+                            child: _userNeedsHeatSection(current),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
+                            title: 'BPA vs Need',
+                            child: _bpaVsNeedSection(current),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
+                            title: 'Reach / Steal Alerts',
+                            child: _reachStealSection(current),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
+                            title: 'Trade Value Deltas',
+                            child: _tradeDeltaSection(current),
                           ),
                         ),
                         const SliverToBoxAdapter(
@@ -621,37 +640,6 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     return null;
   }
 
-  Widget _onClockNeedsSection(
-    DraftState state,
-    Map<String, Color> teamColors,
-  ) {
-    final pick = state.currentPick;
-    if (pick == null) {
-      return const Text('No active pick.');
-    }
-    final team = _teamByAbbr(state, pick.teamAbbr);
-    final needs = team?.needs ?? const <String>[];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '${pick.teamAbbr.toUpperCase()} needs',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: _readableTeamColor(
-              teamColors[pick.teamAbbr.toUpperCase()] ?? AppColors.text,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (needs.isEmpty)
-          const Text('No needs data available.')
-        else
-          _needsChips(needs),
-      ],
-    );
-  }
-
   Widget _userNeedsSection(
     DraftState state,
     Map<String, Color> teamColors,
@@ -690,26 +678,20 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     );
   }
 
-  Widget _positionHeatSection(DraftState state) {
-    if (state.availableProspects.isEmpty) {
-      return const Text('No prospects available.');
-    }
-    final sorted = [...state.availableProspects]
-      ..sort((a, b) {
-        final ar = a.rank ?? 999999;
-        final br = b.rank ?? 999999;
-        return ar.compareTo(br);
-      });
-    final top = sorted.take(30).toList();
+  Widget _userNeedsHeatSection(DraftState state) {
     final counts = <String, int>{};
-    for (final p in top) {
-      final pos = p.position.toUpperCase();
-      counts[pos] = (counts[pos] ?? 0) + 1;
+    for (final abbr in state.userTeams) {
+      final team = _teamByAbbr(state, abbr);
+      final needs = team?.needs ?? const <String>[];
+      for (final need in needs) {
+        final key = need.toUpperCase();
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
     }
     final entries = counts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     if (entries.isEmpty) {
-      return const Text('No position data available.');
+      return const Text('No needs data for user teams.');
     }
     final pills = entries
         .take(6)
@@ -758,6 +740,412 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
       runSpacing: 8,
       children: chips,
     );
+  }
+
+  Widget _bpaVsNeedSection(DraftState state) {
+    final pick = _nextUserPick(state);
+    if (pick == null) {
+      return const Text('No upcoming user picks.');
+    }
+    final team = _teamByAbbr(state, pick.teamAbbr);
+    final needs = team?.needs ?? const <String>[];
+    final ranked = [...state.availableProspects]
+      ..sort((a, b) {
+        final ar = a.rank ?? 999999;
+        final br = b.rank ?? 999999;
+        return ar.compareTo(br);
+      });
+    if (ranked.isEmpty) {
+      return const Text('No prospects available.');
+    }
+    final bpa = ranked.first;
+    final needMatch = needs.isEmpty
+        ? null
+        : ranked.firstWhere(
+            (p) => needs.contains(p.position.toUpperCase()),
+            orElse: () => bpa,
+          );
+    final bpaRank = bpa.rank ?? 999999;
+    final needRank = needMatch?.rank ?? 999999;
+    final delta = needRank - bpaRank;
+    final label = needs.isEmpty
+        ? 'No needs data for ${pick.teamAbbr.toUpperCase()}'
+        : delta == 0
+        ? 'Need match equals BPA'
+        : delta > 0
+        ? 'Need match is +$delta ranks from BPA'
+        : 'Need match is ${delta.abs()} ranks better than BPA';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'BPA: ${bpa.name} (${bpa.position}) • #$bpaRank',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        if (needs.isEmpty)
+          const Text('No needs data available for this team.')
+        else
+          Text(
+            'Best need: ${needMatch?.name ?? '—'} (${needMatch?.position ?? '-'}) • #$needRank',
+            style: const TextStyle(color: AppColors.textMuted),
+          ),
+        const SizedBox(height: 8),
+        Text(label),
+        const SizedBox(height: 8),
+        LinearProgressIndicator(
+          value: needs.isEmpty
+              ? 0.5
+              : (1 / (1 + (delta.abs() / 8))).clamp(0.15, 1.0),
+          backgroundColor: AppColors.surface2,
+          valueColor: AlwaysStoppedAnimation<Color>(
+            delta <= 4 ? AppColors.blue : AppColors.textMuted,
+          ),
+          minHeight: 8,
+        ),
+      ],
+    );
+  }
+
+  Widget _reachStealSection(DraftState state) {
+    final userTeams = state.userTeams.map((t) => t.toUpperCase()).toSet();
+    final recent = state.picksMade
+        .where((p) => userTeams.contains(p.teamAbbr.toUpperCase()))
+        .toList()
+        .reversed
+        .take(8)
+        .toList();
+    if (recent.isEmpty) {
+      return const Text('No user picks yet.');
+    }
+    final alerts = recent
+        .where((p) => p.prospect.rank != null)
+        .map((p) {
+          final rank = p.prospect.rank!;
+          final overall = p.pick.pickOverall;
+          final delta = overall - rank;
+          final label = delta >= 10
+              ? 'Steal'
+              : delta <= -10
+              ? 'Reach'
+              : null;
+          return (p, delta, label);
+        })
+        .where((t) => t.$3 != null)
+        .toList();
+    if (alerts.isEmpty) {
+      return const Text('No reach/steal alerts for user picks.');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: alerts.map((t) {
+        final pr = t.$1;
+        final delta = t.$2;
+        final label = t.$3!;
+        final color = label == 'Steal' ? AppColors.blue : AppColors.textMuted;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(
+            children: [
+              _marketPill(label, color: color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${pr.prospect.name} (${pr.prospect.position}) • Pick ${pr.pick.pickOverall} • Rank #${pr.prospect.rank}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                delta >= 0 ? '+$delta' : '$delta',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _tradeDeltaSection(DraftState state) {
+    final userTeams = state.userTeams.map((t) => t.toUpperCase()).toSet();
+    final allOffers = <TradeOffer>[
+      ...state.tradeInbox,
+      if (state.pendingTrade != null) state.pendingTrade!,
+    ];
+    final dedupedActiveOffers = _dedupeOffers(allOffers);
+    final userOffers = allOffers.where(
+      (o) =>
+          userTeams.contains(o.fromTeam.toUpperCase()) ||
+          userTeams.contains(o.toTeam.toUpperCase()),
+    ).toList();
+    final accepted = _dedupeOffers(state.tradeLog.map(_tradeLogToOffer).toList());
+    final acceptedUser = accepted.where(
+      (o) =>
+          userTeams.contains(o.fromTeam.toUpperCase()) ||
+          userTeams.contains(o.toTeam.toUpperCase()),
+    ).toList();
+    if (userOffers.isEmpty && acceptedUser.isEmpty) {
+      return const Text('No user trade offers to analyze.');
+    }
+
+    final activeOffers = _dedupeOffers(userOffers);
+    final acceptedOffers = acceptedUser;
+
+    final activeEntries = activeOffers.take(3).map((offer) {
+      final perspective = _tradeDeltaPerspective(offer, userTeams);
+      final delta = _tradeValueDeltaFor(
+        offer,
+        state.year,
+        perspective,
+      );
+      final label = delta >= 0
+          ? '+${delta.toStringAsFixed(0)}'
+          : delta.toStringAsFixed(0);
+      final color = delta >= 0 ? AppColors.blue : AppColors.textMuted;
+      final details = _tradeDetails(offer);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${offer.fromTeam} → ${offer.toTeam} (${perspective ?? '—'})',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(fontWeight: FontWeight.w800, color: color),
+              ),
+            ],
+          ),
+          if (details.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              details,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ],
+      );
+    }).toList();
+    final acceptedEntries = acceptedOffers.take(3).map((offer) {
+      final perspective = _tradeDeltaPerspective(offer, userTeams);
+      final delta = _tradeValueDeltaFor(
+        offer,
+        state.year,
+        perspective,
+      );
+      final label = delta >= 0
+          ? '+${delta.toStringAsFixed(0)}'
+          : delta.toStringAsFixed(0);
+      final color = delta >= 0 ? AppColors.blue : AppColors.textMuted;
+      final details = _tradeDetails(offer);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${offer.fromTeam} → ${offer.toTeam} (${perspective ?? '—'})',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(fontWeight: FontWeight.w800, color: color),
+              ),
+            ],
+          ),
+          if (details.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              details,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ],
+      );
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (activeEntries.isNotEmpty) ...[
+          Text(
+            'Active offers (user team POV)',
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...activeEntries.map(
+            (row) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: row,
+            ),
+          ),
+        ],
+        if (acceptedEntries.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Accepted trades (user team POV)',
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...acceptedEntries.map(
+            (row) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: row,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  DraftPick? _nextUserPick(DraftState state) {
+    if (state.userTeams.isEmpty) return null;
+    for (var i = state.currentIndex; i < state.order.length; i++) {
+      final pick = state.order[i];
+      if (state.userTeams.contains(pick.teamAbbr.toUpperCase())) {
+        return pick;
+      }
+    }
+    return null;
+  }
+
+  String? _tradeDeltaPerspective(
+    TradeOffer offer,
+    Set<String> userTeams,
+  ) {
+    final from = offer.fromTeam.toUpperCase();
+    final to = offer.toTeam.toUpperCase();
+    if (userTeams.contains(to)) return to;
+    if (userTeams.contains(from)) return from;
+    return null;
+  }
+
+  double _tradeValueDeltaFor(
+    TradeOffer offer,
+    int year,
+    String? perspectiveTeam,
+  ) {
+    final give = _tradeAssetsValue(offer.toAssets, year);
+    final get = _tradeAssetsValue(offer.fromAssets, year);
+    if (perspectiveTeam == null) return get - give;
+    final from = offer.fromTeam.toUpperCase();
+    final to = offer.toTeam.toUpperCase();
+    if (perspectiveTeam == to) {
+      return get - give; // toTeam receives fromAssets
+    }
+    if (perspectiveTeam == from) {
+      return give - get; // fromTeam receives toAssets
+    }
+    return get - give;
+  }
+
+  double _tradeAssetsValue(List<TradeAsset> assets, int year) {
+    return assets.fold<double>(0, (sum, a) => sum + _assetValue(a, year));
+  }
+
+  List<TradeOffer> _dedupeOffers(List<TradeOffer> offers) {
+    final seen = <String>{};
+    final unique = <TradeOffer>[];
+    for (final offer in offers) {
+      final key = _offerKey(offer);
+      if (seen.add(key)) {
+        unique.add(offer);
+      }
+    }
+    return unique;
+  }
+
+  String _offerKey(TradeOffer offer) {
+    final from = offer.fromTeam.toUpperCase();
+    final to = offer.toTeam.toUpperCase();
+    final fromAssets = offer.fromAssets
+        .map(_assetShortLabel)
+        .join(',');
+    final toAssets = offer.toAssets
+        .map(_assetShortLabel)
+        .join(',');
+    return '$from|$to|$fromAssets|$toAssets';
+  }
+
+  String _tradeDetails(TradeOffer offer) {
+    if (offer.fromAssets.isEmpty && offer.toAssets.isEmpty) return '';
+    final from = offer.fromAssets.map(_assetShortLabel).join(', ');
+    final to = offer.toAssets.map(_assetShortLabel).join(', ');
+    if (from.isEmpty && to.isEmpty) return '';
+    return '$from for $to';
+  }
+
+  String _assetShortLabel(TradeAsset asset) {
+    final pick = asset.pick;
+    if (pick != null) {
+      return 'P${pick.pickOverall}';
+    }
+    final future = asset.futurePick!;
+    return '${future.year} R${future.round}';
+  }
+
+  TradeOffer _tradeLogToOffer(TradeLogEntry entry) {
+    final from = entry.fromTeam;
+    final to = entry.toTeam;
+    return TradeOffer(
+      id: null,
+      fromTeam: from,
+      toTeam: to,
+      fromAssets: entry.fromAssets,
+      toAssets: entry.toAssets,
+    );
+  }
+
+  double _assetValue(TradeAsset asset, int currentYear) {
+    final pickOverall = asset.pickOverall ?? _estimateOverall(asset.round);
+    var value = _richHillValue(pickOverall);
+    final yearDelta = asset.year - currentYear;
+    if (yearDelta > 0) {
+      value *= pow(0.9, yearDelta).toDouble();
+    }
+    return value;
+  }
+
+  double _richHillValue(int overall) {
+    final pick = overall.clamp(1, 300);
+    const maxValue = 1000.0;
+    final curve = pow(0.95, pick - 1);
+    final value = maxValue * curve;
+    return value < 1 ? 1 : value;
+  }
+
+  int _estimateOverall(int round) {
+    final r = round.clamp(1, 7);
+    const midInRound = 16;
+    return ((r - 1) * 32) + midInRound;
   }
 
   Widget _tradeMarketSection(DraftState state) {

@@ -778,6 +778,8 @@ class DraftController extends StateNotifier<DraftState> {
         summary: summary,
         fromTeam: offer.fromTeam,
         toTeam: offer.toTeam,
+        fromAssets: offer.fromAssets,
+        toAssets: offer.toAssets,
       ),
     ];
     state = state.copyWith(
