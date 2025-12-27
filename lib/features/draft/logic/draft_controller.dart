@@ -546,7 +546,10 @@ class DraftController extends StateNotifier<DraftState> {
             toAssets: offer.toAssets,
           )
         : offer;
-    final exists = inbox.any((o) => o.id == id);
+    final signature = _offerSignature(normalized);
+    final exists = inbox.any((o) => _offerSignature(o) == signature) ||
+        (state.pendingTrade != null &&
+            _offerSignature(state.pendingTrade!) == signature);
     if (!exists) {
       inbox.add(normalized);
       state = state.copyWith(tradeInbox: inbox);
@@ -845,6 +848,23 @@ class DraftController extends StateNotifier<DraftState> {
     final stamp = DateTime.now().microsecondsSinceEpoch;
     final salt = _rng.nextInt(1 << 32);
     return '${stamp}_$salt';
+  }
+
+  String _offerSignature(TradeOffer offer) {
+    final from = offer.fromTeam.toUpperCase();
+    final to = offer.toTeam.toUpperCase();
+    final give = offer.fromAssets.map(_assetKey).toList()..sort();
+    final get = offer.toAssets.map(_assetKey).toList()..sort();
+    return '$from->$to|${give.join(",")}=>${get.join(",")}';
+  }
+
+  String _assetKey(TradeAsset asset) {
+    final pick = asset.pick;
+    if (pick != null) {
+      return 'pick:${pick.year}:${pick.round}:${pick.pickOverall}:${pick.pickInRound}';
+    }
+    final future = asset.futurePick!;
+    return 'future:${future.teamAbbr.toUpperCase()}:${future.year}:${future.round}:${future.projectedOverall ?? "?"}';
   }
 
   @override
