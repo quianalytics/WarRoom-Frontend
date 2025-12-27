@@ -2130,43 +2130,79 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
   Widget _header(BuildContext context, DraftState state) {
     final m = (state.secondsRemaining ~/ 60).toString().padLeft(2, '0');
     final s = (state.secondsRemaining % 60).toString().padLeft(2, '0');
+    final progress = state.order.isEmpty
+        ? 0.0
+        : (state.currentIndex / state.order.length).clamp(0.0, 1.0);
+    final currentRound = state.currentPick?.round ?? 1;
+    final roundLabel = 'Round $currentRound';
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: _onClockLabel(
-            state.currentPick?.label ?? 'Draft complete',
-            shimmer: !state.isComplete,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3.5),
-          decoration: BoxDecoration(
-            color: AppColors.blue.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: AppColors.blue.withOpacity(0.5)),
-          ),
-          child: Text(
-            'OTC: ${state.onClockTeam}',
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              color: AppColors.text,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: _onClockLabel(
+                state.currentPick?.label ?? 'Draft complete',
+                shimmer: !state.isComplete,
+              ),
             ),
-          ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3.5),
+              decoration: BoxDecoration(
+                color: AppColors.blue.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: AppColors.blue.withOpacity(0.5)),
+              ),
+              child: Text(
+                'OTC: ${state.onClockTeam}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              '$m:$s',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(width: 10),
+            _statusChip(state),
+          ],
         ),
-        const SizedBox(width: 10),
-        Text(
-          '$m:$s',
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-          ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 6,
+                  backgroundColor: AppColors.surface2,
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppColors.blue,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              roundLabel,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 10),
-        _statusChip(state),
       ],
     );
   }
