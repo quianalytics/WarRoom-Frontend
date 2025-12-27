@@ -4,6 +4,7 @@ import '../../core/storage/local_store.dart';
 import '../draft/logic/draft_speed.dart';
 import '../../theme/app_theme.dart';
 import '../../ui/war_room_background.dart';
+import '../../ui/loading_indicator.dart';
 
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
@@ -402,7 +403,7 @@ class _SetupScreenState extends State<SetupScreen> {
         if (_loadingHistory) {
           return const Padding(
             padding: EdgeInsets.all(24),
-            child: Center(child: CircularProgressIndicator()),
+            child: const Center(child: LoadingIndicator()),
           );
         }
         if (_history.isEmpty) {

@@ -21,6 +21,7 @@ import '../../../ui/pick_card.dart';
 import '../../../ui/war_room_background.dart';
 import '../../../ui/staggered_reveal.dart';
 import '../../../ui/section_frame.dart';
+import '../../../ui/loading_indicator.dart';
 import '../../../theme/app_theme.dart';
 
 class DraftRoomScreen extends ConsumerStatefulWidget {
@@ -1679,7 +1680,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
       ),
       body: WarRoomBackground(
         child: state.loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: LoadingIndicator())
             : state.error != null
             ? _errorState(context, state)
             : _content(context, state),
