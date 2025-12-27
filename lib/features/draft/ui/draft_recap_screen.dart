@@ -215,6 +215,34 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                           ),
                           const SizedBox(height: 12),
                         ],
+                        Panel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Post-Draft Pressers',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ..._presserLines(picks).map(
+                                (line) => Padding(
+                                  padding:
+                                      const EdgeInsets.only(bottom: 6),
+                                  child: Text(
+                                    '• $line',
+                                    style: const TextStyle(
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         Expanded(
                           child: ListView.separated(
                             itemCount: picks.length,
@@ -430,6 +458,115 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
     if (delta >= -18) return const _Grade('C', 74);
     if (delta >= -27) return const _Grade('D', 68);
     return const _Grade('F', 60);
+  }
+
+  List<String> _presserLines(List<PickResult> picks) {
+    if (picks.isEmpty) return const ['No picks to recap yet.'];
+    final ranked = picks
+        .map((p) => (p, _gradeForPick(p)))
+        .toList()
+      ..sort((a, b) => b.$2.score.compareTo(a.$2.score));
+    final top = ranked.take(3).toList();
+    return top.map((entry) {
+      final pr = entry.$1;
+      final grade = entry.$2.letter;
+      final rank = pr.prospect.rank;
+      final pos = pr.prospect.position.toUpperCase();
+      final pick = pr.pick.pickOverall;
+      final team = pr.teamAbbr.toUpperCase();
+      final college = (pr.prospect.college ?? '').trim();
+      final collegeTag = college.isEmpty ? '' : ' from $college';
+      final rankTag = rank == null ? '' : ' (ranked #$rank)';
+      final tone = grade.startsWith('A')
+          ? 'Home run'
+          : grade.startsWith('B')
+          ? 'Smart value'
+          : 'Bet on traits';
+      return _presserLine(
+        team: team,
+        player: pr.prospect.name,
+        pos: pos,
+        pick: pick,
+        collegeTag: collegeTag,
+        rankTag: rankTag,
+        tone: tone,
+      );
+    }).toList();
+  }
+
+  String _presserLine({
+    required String team,
+    required String player,
+    required String pos,
+    required int pick,
+    required String collegeTag,
+    required String rankTag,
+    required String tone,
+  }) {
+    final lead = _presserLead(pick, tone);
+    final closer = _presserCloser(pick);
+    switch (pos) {
+      case 'QB':
+        return '$team: $lead We are excited about $player$collegeTag, a field general who can elevate the room$rankTag$closer';
+      case 'WR':
+        return '$team: $lead $player$collegeTag brings suddenness and separation to the perimeter$rankTag$closer';
+      case 'RB':
+        return '$team: $lead $player$collegeTag gives us burst and balance in a crowded backfield$rankTag$closer';
+      case 'TE':
+        return '$team: $lead $player$collegeTag is a mismatch piece we can move all over the formation$rankTag$closer';
+      case 'OT':
+      case 'OL':
+      case 'IOL':
+      case 'LG':
+      case 'RG':
+      case 'C':
+        return '$team: $lead $player$collegeTag anchors the line with size, smarts, and finishing power$rankTag$closer';
+      case 'DL':
+      case 'DT':
+      case 'EDGE':
+        return '$team: $lead $player$collegeTag can tilt the front with length and pressure juice$rankTag$closer';
+      case 'LB':
+        return '$team: $lead $player$collegeTag brings range, leadership, and clean tackling$rankTag$closer';
+      case 'CB':
+        return '$team: $lead $player$collegeTag gives us sticky coverage and ball skills$rankTag$closer';
+      case 'S':
+        return '$team: $lead $player$collegeTag adds versatility on the back end and in the box$rankTag$closer';
+      default:
+        return '$team: $lead $player$collegeTag fits the vision for how we want to play$rankTag$closer';
+    }
+  }
+
+  String _presserLead(int pick, String tone) {
+    final leads = [
+      '$tone at Pick $pick.',
+      'We were thrilled to land this at Pick $pick.',
+      'This was a priority target, and we got him at Pick $pick.',
+      'We stayed disciplined and the board delivered at Pick $pick.',
+      'It lined up perfectly at Pick $pick.',
+      'We think the value at Pick $pick was too good to pass up.',
+      'We came in with a plan and executed at Pick $pick.',
+      'We trusted the board and it rewarded us at Pick $pick.',
+      'This was one we circled early, and it fell to Pick $pick.',
+      'Sometimes the room aligns, and Pick $pick was one of those.',
+      'This pick at $pick reflects the identity we are building.',
+      'We saw a fit and didn’t overthink it at Pick $pick.',
+      'That was a strong talent/value intersection at Pick $pick.',
+    ];
+    return leads[pick % leads.length];
+  }
+
+  String _presserCloser(int pick) {
+    final closers = [
+      ' We love the competitive makeup.',
+      ' The tape and character both check out.',
+      ' The staff is excited to get to work with him.',
+      ' He fits the culture we are building.',
+      ' We feel great about the projection.',
+      ' The trajectory is exactly what we want.',
+      ' We think he is just scratching the surface.',
+      ' We had conviction about the fit.',
+    ];
+    return closers[pick % closers.length];
   }
 
   _Grade _avgScore(List<_Grade> grades) {

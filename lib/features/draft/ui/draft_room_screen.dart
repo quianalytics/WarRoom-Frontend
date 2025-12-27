@@ -344,6 +344,15 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                         ),
                         SliverToBoxAdapter(
                           child: SectionFrame(
+                            title: 'Draft Board Optimizer',
+                            child: _draftBoardOptimizerSection(current),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
                             title: 'Reach / Steal Alerts',
                             child: _reachStealSection(current),
                           ),
@@ -803,6 +812,87 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
             delta <= 4 ? AppColors.blue : AppColors.textMuted,
           ),
           minHeight: 8,
+        ),
+      ],
+    );
+  }
+
+  Widget _draftBoardOptimizerSection(DraftState state) {
+    final pick = _nextUserPick(state);
+    if (pick == null) {
+      return const Text('No upcoming user picks.');
+    }
+    final team = _teamByAbbr(state, pick.teamAbbr);
+    final needs = team?.needs ?? const <String>[];
+    final ranked = [...state.availableProspects]
+      ..sort((a, b) {
+        final ar = a.rank ?? 999999;
+        final br = b.rank ?? 999999;
+        return ar.compareTo(br);
+      });
+    if (ranked.isEmpty) {
+      return const Text('No prospects available.');
+    }
+    final bpa = ranked.first;
+    final bestNeed = needs.isEmpty
+        ? null
+        : ranked.firstWhere(
+            (p) => needs.contains(p.position.toUpperCase()),
+            orElse: () => bpa,
+          );
+    final pickOverall = pick.pickOverall;
+    final bpaRank = bpa.rank ?? pickOverall;
+    final needRank = bestNeed?.rank ?? pickOverall;
+    final gapToBpa = pickOverall - bpaRank;
+    final gapToNeed = pickOverall - needRank;
+    final onClock = state.currentPick?.pickOverall == pickOverall;
+
+    String headline;
+    String detail;
+    if (needs.isEmpty) {
+      headline = 'Hold: BPA is the cleanest value.';
+      detail =
+          'BPA ${bpa.name} (${bpa.position}) is ranked #$bpaRank for Pick $pickOverall.';
+    } else if (bestNeed == bpa) {
+      headline = 'BPA aligns with a top need.';
+      detail =
+          '${bpa.position} fits ${pick.teamAbbr.toUpperCase()} and is ranked #$bpaRank.';
+    } else if (gapToBpa <= -6) {
+      final target = max(1, pickOverall - gapToBpa.abs());
+      headline = 'Consider trading up.';
+      detail =
+          'BPA ${bpa.name} is ranked #$bpaRank; target Pick ~$target to secure him.';
+    } else if (gapToNeed >= 8) {
+      headline = 'Consider trading down.';
+      detail =
+          'Best need (${bestNeed?.position}) is ranked #$needRank; likely available later.';
+    } else {
+      headline = 'Hold and stay flexible.';
+      detail =
+          'BPA is #$bpaRank; best need is #$needRank for Pick $pickOverall.';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _marketPill(
+              onClock ? 'On the clock' : 'Next pick: P$pickOverall',
+            ),
+            const SizedBox(width: 8),
+            _marketPill(pick.teamAbbr.toUpperCase()),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          headline,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          detail,
+          style: const TextStyle(color: AppColors.textMuted),
         ),
       ],
     );
