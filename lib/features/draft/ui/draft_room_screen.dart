@@ -95,6 +95,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
   bool _tradePopupsEnabled = true;
   final Set<String> _tradeBaitIds = {};
   StreamSubscription<Set<String>>? _badgeSubscription;
+  bool _focusMode = false;
 
   @override
   void initState() {
@@ -1657,6 +1658,13 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
             },
           ),
 
+          IconPill(
+            icon:
+                _focusMode ? Icons.center_focus_strong : Icons.center_focus_weak,
+            tooltip: _focusMode ? 'Exit Focus Mode' : 'Focus Mode',
+            onPressed: () => setState(() => _focusMode = !_focusMode),
+          ),
+
           _tradeInboxButton(state),
           _draftHqButton(state),
 
@@ -2037,14 +2045,26 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
         });
 
     final topBoard = filtered.take(150).toList();
+    final showTicker =
+        !_focusMode && _tradeTickerVisible && _tradeTickerQueue.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
         children: [
-          Panel(child: _header(context, state)),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            switchInCurve: AppMotion.revealCurve,
+            switchOutCurve: AppMotion.revealCurve,
+            child: _focusMode
+                ? const SizedBox.shrink(key: ValueKey('header-off'))
+                : Panel(
+                    key: const ValueKey('header-on'),
+                    child: _header(context, state),
+                  ),
+          ),
           const SizedBox(height: 12),
-          if (_tradeTickerVisible && _tradeTickerQueue.isNotEmpty)
+          if (showTicker)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _tradeTickerStrip(),
@@ -2054,23 +2074,41 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
               children: [
                 // Big board expands to full width when recap is collapsed
                 Expanded(
-                  flex: recapCollapsed ? 1 : 3,
+                  flex: _focusMode
+                      ? 1
+                      : recapCollapsed
+                          ? 1
+                          : 3,
                   child: _bigBoardPanel(state, topBoard),
                 ),
-                const SizedBox(width: 12),
-
-                if (recapCollapsed)
-                  SizedBox(
-                    width: 44, // slim rail
-                    child: _recapRail(state),
-                  )
-                else
-                  Expanded(flex: 2, child: Panel(child: _pickLogPanel(state))),
+                if (!_focusMode) ...[
+                  const SizedBox(width: 12),
+                  if (recapCollapsed)
+                    SizedBox(
+                      width: 44, // slim rail
+                      child: _recapRail(state),
+                    )
+                  else
+                    Expanded(
+                      flex: 2,
+                      child: Panel(child: _pickLogPanel(state)),
+                    ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 12),
-          if (pick != null) Panel(child: _onClockFooter(state)),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 160),
+            switchInCurve: AppMotion.revealCurve,
+            switchOutCurve: AppMotion.revealCurve,
+            child: pick == null
+                ? const SizedBox.shrink(key: ValueKey('footer-off'))
+                : Panel(
+                    key: const ValueKey('footer-on'),
+                    child: _onClockFooter(state),
+                  ),
+          ),
         ],
       ),
     );
@@ -2134,68 +2172,80 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
   }
 
   Widget _onClockLabel(String text, {required bool shimmer}) {
-    return Stack(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppColors.surface2,
-            borderRadius: AppRadii.r12,
-            border: Border.all(color: AppColors.borderStrong),
-          ),
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        if (shimmer)
-          Positioned.fill(
-            child: ClipRRect(
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 160),
+      switchInCurve: AppMotion.revealCurve,
+      switchOutCurve: AppMotion.revealCurve,
+      child: Stack(
+        key: ValueKey(text),
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.surface2,
               borderRadius: AppRadii.r12,
-              child: AnimatedBuilder(
-                animation: _shimmerController,
-                builder: (context, _) {
-                  final x = (_shimmerController.value * 2 - 0.5);
-                  return Transform.translate(
-                    offset: Offset(x * 120, 0),
-                    child: Container(
-                      width: 120,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color(0x00FFFFFF),
-                            Color(0x33A7E3FF),
-                            Color(0x00FFFFFF),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+              border: Border.all(color: AppColors.borderStrong),
+            ),
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-      ],
+          if (shimmer)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: AppRadii.r12,
+                child: AnimatedBuilder(
+                  animation: _shimmerController,
+                  builder: (context, _) {
+                    final x = (_shimmerController.value * 2 - 0.5);
+                    return Transform.translate(
+                      offset: Offset(x * 120, 0),
+                      child: Container(
+                        width: 120,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color(0x00FFFFFF),
+                              Color(0x33A7E3FF),
+                              Color(0x00FFFFFF),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
   Widget _statusChip(DraftState state) {
     final isUser = state.isUserOnClock;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3.5),
-      decoration: BoxDecoration(
-        color: isUser ? AppColors.blue.withOpacity(0.15) : AppColors.surface2,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: isUser ? AppColors.blue.withOpacity(0.4) : AppColors.border,
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 140),
+      switchInCurve: AppMotion.revealCurve,
+      switchOutCurve: AppMotion.revealCurve,
+      child: Container(
+        key: ValueKey(isUser),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3.5),
+        decoration: BoxDecoration(
+          color: isUser ? AppColors.blue.withOpacity(0.15) : AppColors.surface2,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: isUser ? AppColors.blue.withOpacity(0.4) : AppColors.border,
+          ),
         ),
-      ),
-      child: Text(
-        isUser ? 'USER PICK' : 'CPU PICK',
-        style: const TextStyle(
-          fontWeight: FontWeight.w700,
-          color: AppColors.text,
+        child: Text(
+          isUser ? 'USER PICK' : 'CPU PICK',
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: AppColors.text,
+          ),
         ),
       ),
     );
@@ -2311,6 +2361,20 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                               ),
                             ))
                       : null;
+                  final actionWidget = action == null
+                      ? const SizedBox.shrink()
+                      : TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.94, end: 1.0),
+                          duration: const Duration(milliseconds: 140),
+                          curve: AppMotion.revealCurve,
+                          builder: (context, value, child) {
+                            return Transform.scale(
+                              scale: value,
+                              child: child,
+                            );
+                          },
+                          child: action,
+                        );
 
                   return StaggeredReveal(
                     index: i,
@@ -2364,7 +2428,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                             ),
                             if (action != null) ...[
                               const SizedBox(width: 10),
-                              action,
+                              actionWidget,
                             ],
                           ],
                         ),
