@@ -135,7 +135,7 @@ class _DraftRecapScreenState extends ConsumerState<DraftRecapScreen> {
                                         child: Text(
                                           _showAllTeams
                                               ? 'All Teams'
-                                              : 'All My Teams',
+                                              : 'All',
                                         ),
                                       ),
                                       ...visibleTeams.map(

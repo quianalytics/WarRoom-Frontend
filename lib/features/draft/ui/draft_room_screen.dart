@@ -11,6 +11,7 @@ import '../logic/draft_state.dart';
 import '../models/trade.dart';
 import '../models/prospect.dart';
 import '../models/draft_pick.dart';
+import '../models/team.dart';
 import 'widgets/trade_sheet.dart';
 import '../../../ui/icon_pill.dart';
 import '../../../ui/panel.dart';
@@ -272,6 +273,95 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     );
   }
 
+  Widget _draftHqButton(DraftState state) {
+    return IconPill(
+      icon: Icons.insights,
+      tooltip: 'Draft HQ',
+      onPressed: () => _showDraftHqSheet(context),
+    );
+  }
+
+  Future<void> _showDraftHqSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final current = ref.watch(draftControllerProvider);
+            final teamColors = _teamColorMap(current);
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.8,
+              minChildSize: 0.55,
+              maxChildSize: 0.95,
+              builder: (context, scrollController) {
+                return SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: CustomScrollView(
+                      controller: scrollController,
+                      slivers: [
+                        const SliverToBoxAdapter(
+                          child: Text(
+                            'Draft HQ',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
+                            title: 'On-Clock Needs',
+                            child: _onClockNeedsSection(current, teamColors),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
+                            title: 'User Team Needs',
+                            child: _userNeedsSection(current, teamColors),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
+                            title: 'Position Heat (Top 30)',
+                            child: _positionHeatSection(current),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
+                            title: 'Next User Pick',
+                            child: _nextPickSection(current),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _showTradeInboxSheet(
     BuildContext context,
     DraftState state,
@@ -520,6 +610,156 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     );
   }
 
+  Team? _teamByAbbr(DraftState state, String abbr) {
+    final u = abbr.toUpperCase();
+    for (final team in state.teams) {
+      if (team.abbreviation.toUpperCase() == u ||
+          team.teamId.toUpperCase() == u) {
+        return team;
+      }
+    }
+    return null;
+  }
+
+  Widget _onClockNeedsSection(
+    DraftState state,
+    Map<String, Color> teamColors,
+  ) {
+    final pick = state.currentPick;
+    if (pick == null) {
+      return const Text('No active pick.');
+    }
+    final team = _teamByAbbr(state, pick.teamAbbr);
+    final needs = team?.needs ?? const <String>[];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${pick.teamAbbr.toUpperCase()} needs',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: _readableTeamColor(
+              teamColors[pick.teamAbbr.toUpperCase()] ?? AppColors.text,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (needs.isEmpty)
+          const Text('No needs data available.')
+        else
+          _needsChips(needs),
+      ],
+    );
+  }
+
+  Widget _userNeedsSection(
+    DraftState state,
+    Map<String, Color> teamColors,
+  ) {
+    if (state.userTeams.isEmpty) {
+      return const Text('No user-controlled teams selected.');
+    }
+    final teams = state.userTeams
+        .map((abbr) => _teamByAbbr(state, abbr))
+        .whereType<Team>()
+        .toList();
+    if (teams.isEmpty) {
+      return const Text('No needs data available.');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final team in teams) ...[
+          Text(
+            team.abbreviation.toUpperCase(),
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: _readableTeamColor(
+                teamColors[team.abbreviation.toUpperCase()] ?? AppColors.text,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          if ((team.needs ?? const <String>[]).isEmpty)
+            const Text('No needs data available.')
+          else
+            _needsChips(team.needs!),
+          const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+
+  Widget _positionHeatSection(DraftState state) {
+    if (state.availableProspects.isEmpty) {
+      return const Text('No prospects available.');
+    }
+    final sorted = [...state.availableProspects]
+      ..sort((a, b) {
+        final ar = a.rank ?? 999999;
+        final br = b.rank ?? 999999;
+        return ar.compareTo(br);
+      });
+    final top = sorted.take(30).toList();
+    final counts = <String, int>{};
+    for (final p in top) {
+      final pos = p.position.toUpperCase();
+      counts[pos] = (counts[pos] ?? 0) + 1;
+    }
+    final entries = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    if (entries.isEmpty) {
+      return const Text('No position data available.');
+    }
+    final pills = entries
+        .take(6)
+        .map((e) => _marketPill('${e.key} x${e.value}'))
+        .toList();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: pills,
+    );
+  }
+
+  Widget _nextPickSection(DraftState state) {
+    final gap = _nextUserPickGap(state);
+    if (gap == null) {
+      return const Text('No upcoming user pick.');
+    }
+    final label = gap == 0 ? 'On the clock' : '+$gap picks';
+    return Row(
+      children: [
+        _marketPill('Next user pick: $label'),
+      ],
+    );
+  }
+
+  Widget _needsChips(List<String> needs) {
+    final chips = needs.map((need) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.surface2,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Text(
+          need.toUpperCase(),
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
+      );
+    }).toList();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: chips,
+    );
+  }
+
   Widget _tradeMarketSection(DraftState state) {
     final run = _positionRun(state);
     final nextPickGap = _nextUserPickGap(state);
@@ -661,6 +901,7 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
           ),
 
           _tradeInboxButton(state),
+          _draftHqButton(state),
 
           IconPill(
             icon: Icons.exit_to_app,
