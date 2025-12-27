@@ -29,6 +29,15 @@ class AppGradients {
     end: Alignment.bottomRight,
   );
 
+  static const vignette = RadialGradient(
+    colors: [
+      Color(0x00000000),
+      Color(0xAA05070C),
+    ],
+    center: Alignment(0.0, -0.2),
+    radius: 1.1,
+  );
+
   static const panel = LinearGradient(
     colors: [
       Color(0xFF1A2232),
@@ -38,6 +47,15 @@ class AppGradients {
     end: Alignment.bottomRight,
   );
 
+  static const panelSheen = LinearGradient(
+    colors: [
+      Color(0x22FFFFFF),
+      Color(0x00FFFFFF),
+    ],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
   static const pill = LinearGradient(
     colors: [
       Color(0xFF1A2536),
@@ -45,6 +63,15 @@ class AppGradients {
     ],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
+  );
+
+  static const accentBar = LinearGradient(
+    colors: [
+      Color(0xFF4ED6FF),
+      Color(0xFF6DFFB4),
+    ],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
   );
 }
 

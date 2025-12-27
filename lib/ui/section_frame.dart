@@ -17,26 +17,49 @@ class SectionFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadii.r16,
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (title != null)
-            Row(
-              children: [
-                Expanded(child: SectionHeader(text: title!)),
-                if (trailing != null) trailing!,
-              ],
+    return ClipRRect(
+      borderRadius: AppRadii.r16,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: AppRadii.r16,
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(gradient: AppGradients.panelSheen),
+              ),
             ),
-          if (title != null) const SizedBox(height: 8),
-          child,
-        ],
+            Padding(
+              padding: padding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (title != null)
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 18,
+                          decoration: const BoxDecoration(
+                            gradient: AppGradients.accentBar,
+                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(child: SectionHeader(text: title!)),
+                        if (trailing != null) trailing!,
+                      ],
+                    ),
+                  if (title != null) const SizedBox(height: 10),
+                  child,
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

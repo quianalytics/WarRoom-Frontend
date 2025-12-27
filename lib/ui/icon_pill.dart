@@ -20,7 +20,7 @@ class IconPill extends StatelessWidget {
       onPressed: onPressed,
       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       icon: Container(
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
           gradient: AppGradients.pill,
           borderRadius: AppRadii.r16,
@@ -36,9 +36,14 @@ class IconPill extends StatelessWidget {
               blurRadius: 14,
               offset: Offset(0, 6),
             ),
+            BoxShadow(
+              color: Color(0x221FA1FF),
+              blurRadius: 18,
+              offset: Offset(0, 6),
+            ),
           ],
         ),
-        child: Icon(icon, size: 14, color: AppColors.text),
+        child: Icon(icon, size: 15, color: AppColors.text),
       ),
     );
   }

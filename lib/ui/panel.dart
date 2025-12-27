@@ -9,26 +9,40 @@ class Panel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        gradient: AppGradients.panel,
-        borderRadius: AppRadii.r16,
-        border: Border.all(color: AppColors.borderStrong),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x55000000),
-            blurRadius: 16,
-            offset: Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Color(0x22002C4F),
-            blurRadius: 24,
-            offset: Offset(0, 12),
-          ),
-        ],
+    return ClipRRect(
+      borderRadius: AppRadii.r16,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: AppGradients.panel,
+          borderRadius: AppRadii.r16,
+          border: Border.all(color: AppColors.borderStrong),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x55000000),
+              blurRadius: 16,
+              offset: Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Color(0x22002C4F),
+              blurRadius: 24,
+              offset: Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(gradient: AppGradients.panelSheen),
+              ),
+            ),
+            Padding(
+              padding: padding,
+              child: child,
+            ),
+          ],
+        ),
       ),
-      child: child,
     );
   }
 }

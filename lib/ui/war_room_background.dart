@@ -50,6 +50,11 @@ class _WarRoomBackgroundState extends State<WarRoomBackground>
             },
           ),
         ),
+        const Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(gradient: AppGradients.vignette),
+          ),
+        ),
         widget.child,
       ],
     );
