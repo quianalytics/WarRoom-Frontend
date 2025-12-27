@@ -170,7 +170,7 @@ Parsing notes:
   that prepares query params for the draft route, including CPU speed selection
   and trade tuning. Team labels are colored by team brand.
 - Setup includes a Saved Drafts action in the app bar that opens a bottom sheet
-  with history entries, resume-from-pick, rename, and clear actions.
+  with history entries, resume-from-pick, rename, and delete actions.
 - Draft recap: `lib/features/draft/ui/draft_recap_screen.dart` shows user picks
   with per-pick grades and an overall class grade, plus a trade history section
   filtered by the selected team. The recap screen can share or save a screenshot
@@ -212,6 +212,7 @@ Parsing notes:
 - Setup includes a Trade popups toggle persisted in `LocalStore`; when disabled,
   offers skip modal popups but still appear in the Trade Center.
 - Trade popups toggle is also exposed mid-draft in the Trade Center settings.
+- Draft save is opt-in at exit; users choose Save & Exit or Exit Without Saving.
 - Badge earned toasts are styled to match the WarRoom theme.
 - Recap share/save applies a branded frame (title, watermark, badge stats) before
   exporting or saving the screenshot.

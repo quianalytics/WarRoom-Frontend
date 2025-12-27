@@ -51,6 +51,20 @@ class DraftRoomScreen extends ConsumerStatefulWidget {
 
 enum _ExitAction { cancel, exit, save }
 
+class _TradeHeatTeam {
+  const _TradeHeatTeam({
+    required this.teamAbbr,
+    required this.nextPickOverall,
+    required this.upScore,
+    required this.downScore,
+  });
+
+  final String teamAbbr;
+  final int nextPickOverall;
+  final double upScore;
+  final double downScore;
+}
+
 class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     with SingleTickerProviderStateMixin {
   String search = '';
@@ -354,6 +368,15 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
                           child: SectionFrame(
                             title: 'Run Predictor',
                             child: _runPredictorSection(current),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 12),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SectionFrame(
+                            title: 'Trade Market Heat Map',
+                            child: _tradeMarketHeatSection(current),
                           ),
                         ),
                         const SliverToBoxAdapter(
@@ -902,6 +925,121 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
     );
   }
 
+  Widget _tradeMarketHeatSection(DraftState state) {
+    final currentPick = state.currentPick?.pickOverall ?? 1;
+    final prospects = [...state.availableProspects]
+      ..sort((a, b) {
+        final ar = a.rank ?? 999999;
+        final br = b.rank ?? 999999;
+        return ar.compareTo(br);
+      });
+    final topProspects = prospects.take(40).toList();
+    if (topProspects.isEmpty || state.order.isEmpty) {
+      return const Text('No trade heat data available yet.');
+    }
+
+    final heat = <_TradeHeatTeam>[];
+    for (final team in state.teams) {
+      final needs = team.needs ?? const <String>[];
+      if (needs.isEmpty) continue;
+      DraftPick? nextPick;
+      for (final pick in state.order) {
+        if (pick.pickOverall < currentPick) continue;
+        if (pick.teamAbbr.toUpperCase() == team.abbreviation.toUpperCase()) {
+          nextPick = pick;
+          break;
+        }
+      }
+      if (nextPick == null) continue;
+      final needMatches = topProspects
+          .where((p) => needs.contains(p.position.toUpperCase()))
+          .toList();
+      if (needMatches.isEmpty) continue;
+      final demand = max(1, needMatches.length);
+      final supplyBeforePick = needMatches
+          .where((p) => (p.rank ?? 999999) <= nextPick!.pickOverall)
+          .length;
+      final distanceFactor =
+          ((nextPick.pickOverall - currentPick) / 20).clamp(0.0, 1.0);
+      final scarcity = 1 - (supplyBeforePick / demand);
+      final upScore = (scarcity * 0.7 + distanceFactor * 0.3).clamp(0.0, 1.0);
+
+      final abundance = (supplyBeforePick / demand).clamp(0.0, 1.0);
+      final earlyFactor =
+          (1 - ((nextPick.pickOverall - currentPick) / 12).clamp(0.0, 1.0))
+              .clamp(0.0, 1.0);
+      final picksSoon = state.order
+          .where((p) =>
+              p.pickOverall >= currentPick &&
+              p.pickOverall <= currentPick + 20 &&
+              p.teamAbbr.toUpperCase() == team.abbreviation.toUpperCase())
+          .length;
+      final extra = picksSoon >= 2 ? 0.15 : 0.0;
+      final downScore =
+          (abundance * 0.6 + earlyFactor * 0.3 + extra).clamp(0.0, 1.0);
+
+      heat.add(
+        _TradeHeatTeam(
+          teamAbbr: team.abbreviation.toUpperCase(),
+          nextPickOverall: nextPick.pickOverall,
+          upScore: upScore,
+          downScore: downScore,
+        ),
+      );
+    }
+
+    if (heat.isEmpty) {
+      return const Text('No trade heat data available yet.');
+    }
+
+    final teamColors = _teamColorMap(state);
+    final upTeams = [...heat]
+      ..sort((a, b) => b.upScore.compareTo(a.upScore));
+    final downTeams = [...heat]
+      ..sort((a, b) => b.downScore.compareTo(a.downScore));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Likely to Trade Up',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: upTeams.take(6).map((team) {
+            final color = teamColors[team.teamAbbr] ?? AppColors.blue;
+            return _heatPill(
+              '${team.teamAbbr} ↑ P${team.nextPickOverall}',
+              team.upScore,
+              color,
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          'Likely to Trade Down',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: downTeams.take(6).map((team) {
+            final color = teamColors[team.teamAbbr] ?? AppColors.mint;
+            return _heatPill(
+              '${team.teamAbbr} ↓ P${team.nextPickOverall}',
+              team.downScore,
+              color,
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   Widget _draftBoardOptimizerSection(DraftState state) {
     final pick = _nextUserPick(state);
     if (pick == null) {
@@ -1436,6 +1574,27 @@ class _DraftRoomScreenState extends ConsumerState<DraftRoomScreen>
         style: TextStyle(
           fontWeight: FontWeight.w700,
           color: color ?? AppColors.text,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget _heatPill(String label, double score, Color color) {
+    final bg = color.withOpacity(0.12 + (0.35 * score));
+    final border = color.withOpacity(0.35 + (0.4 * score));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: _readableTeamColor(color),
           fontSize: 12,
         ),
       ),
